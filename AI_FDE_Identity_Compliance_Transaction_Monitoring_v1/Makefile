@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: install test eval preflight api smoke
+.PHONY: install test eval preflight api smoke streamlit
 install:
 	$(PYTHON) -m pip install -r requirements.txt
 
@@ -19,3 +19,7 @@ api:
 
 smoke:
 	$(PYTHON) scripts/smoke_server.py
+
+streamlit:
+	$(PYTHON) -m pip install -q -r requirements-streamlit.txt
+	$(PYTHON) -m streamlit run scripts/streamlit_app.py

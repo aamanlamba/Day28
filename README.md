@@ -86,13 +86,37 @@ for the full release-evidence pack and
 for per-challenge traceability. Individual run reports: `results/00-*.md` through
 `results/16-*.md`.
 
-- Full regression: 82 tests passing; preflight, sanity check, golden+adversarial+
-  metamorphic+outage evals, and smoke server all green, re-verified at release time.
-- `/v1` compatibility fully preserved throughout and re-verified live at release
-  (`tests/test_release_integrity.py`, plus a live check in Prompt 16).
-- Two open change requests (`CR-001`, `CR-002`) and ten backlog items (`backlog.md`) remain
-  — all non-blocking, all documented with rationale rather than silently skipped.
-  `CR-002` (HITL reviewer role is self-declared, not authenticated) is the one item that
-  should be resolved before any non-training use of the review endpoint.
+- Full regression: 91 tests passing (grew from 82 at Prompt 16 as backlog items landed);
+  preflight, sanity check, golden+adversarial+metamorphic+outage evals, and smoke server
+  all green, re-verified throughout.
+- `/v1` compatibility fully preserved throughout and re-verified live and byte-for-byte at
+  every single change across the whole series, including the backlog session.
+- **Backlog (`backlog.md`) triaged: 8 of 10 items resolved** (BL-001–008 — 6 implemented,
+  2 resolved by explicit decision not to build a fabricated business rule). **2 left open
+  by deliberate choice**, not oversight: `BL-009` (point-in-time KYC-history
+  reconstruction — needs its own persistence-layer design project) and `BL-010` (genuine
+  fan-out/dispersal detection — needs sum-tolerance/beneficiary-count parameters not yet
+  supplied).
+- Two open change requests remain: `CR-001` (KYC refresh-date policy) and `CR-002` (HITL
+  reviewer role is self-declared, not authenticated — the one item that should be resolved
+  before any non-training use of the review endpoint).
 
-Next: backlog items, at the user's discretion — none are release-blocking.
+Next: `BL-009`/`BL-010`/`CR-001`/`CR-002`, at the user's discretion — none are
+release-blocking.
+
+## Trying it out
+
+An interactive Streamlit console covering every `/v1` and `/v2` capability (legacy
+verification, identity resolution, transaction monitoring with policy-version replay,
+compliance disposition, and the HITL review workflow) is available for manual testing —
+see `AI_FDE_Identity_Compliance_Transaction_Monitoring_v1/WORKSHOP_RUNBOOK.md` §6:
+
+```bash
+cd AI_FDE_Identity_Compliance_Transaction_Monitoring_v1
+python -m pip install -r requirements-streamlit.txt
+streamlit run scripts/streamlit_app.py
+```
+
+It's a local testing convenience (calls `src/*` directly, kept out of the service's own
+`requirements.txt`), verified working end-to-end across all six tabs, including the HITL
+authorization boundary (unauthorized downgrade correctly rejected with a 403-style error).

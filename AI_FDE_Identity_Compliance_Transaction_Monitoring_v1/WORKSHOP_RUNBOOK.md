@@ -77,7 +77,23 @@ Example request body:
 {"document_id":"CASE-001-PASSPORT"}
 ```
 
-## 6. Common workshop setup failures
+## 6. Interactive test console (optional)
+
+A Streamlit console covering every `/v1` and `/v2` capability (legacy verification,
+identity resolution, transaction monitoring with policy-version replay, integrated
+compliance disposition, and the HITL review/override workflow) is available for manual
+exploration — it is a local testing convenience, not part of the deployed service:
+
+```bash
+python -m pip install -r requirements-streamlit.txt
+streamlit run scripts/streamlit_app.py
+```
+
+or `make streamlit`. Opens at `http://localhost:8501`. Calls `src/*` directly (same
+pattern as `scripts/run_demo.py`), so no separate `uvicorn` process is needed. Review
+decisions submitted through it are in-memory only and reset when the process restarts.
+
+## 7. Common workshop setup failures
 
 ### `ModuleNotFoundError`
 Activate the virtual environment and run:
@@ -99,6 +115,6 @@ Either use Command Prompt activation (`.venv\\Scripts\\activate.bat`) or follow 
 ### Browser cannot reach Swagger UI
 Confirm `/health/live` responds first. Corporate endpoint controls, proxies or host firewall rules may block local ports even when the application is healthy.
 
-## 7. Data safety
+## 8. Data safety
 
 Every identity, number and image in this repository is fabricated for training. Do not replace the synthetic dataset with real identity documents in a classroom environment.

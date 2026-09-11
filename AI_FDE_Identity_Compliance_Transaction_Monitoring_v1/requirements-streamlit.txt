@@ -1,0 +1,5 @@
+# Testing/demo convenience only - NOT a service dependency. Kept out of requirements.txt
+# so the actual /v1+/v2 service has no dependency on a UI framework.
+# Install with: pip install -r requirements-streamlit.txt
+# Run with:     streamlit run scripts/streamlit_app.py
+streamlit==1.63.0
