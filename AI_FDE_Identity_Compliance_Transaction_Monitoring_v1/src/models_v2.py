@@ -48,6 +48,7 @@ class MonitoringResult(BaseModel):
     received_transaction_count: int
     processed_transaction_count: int
     hook_warnings: list[str] = []
+    policy_version: str  # CH-14: populated even when alerts is empty
 
 class ComplianceCaseResult(BaseModel):
     case_id: str

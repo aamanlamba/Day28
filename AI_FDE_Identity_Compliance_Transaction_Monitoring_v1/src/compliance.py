@@ -1,10 +1,10 @@
 from .identity import build_identity_profile
-from .monitoring import evaluate_transactions, POLICY_VERSION
+from .monitoring import evaluate_transactions
 from .models_v2 import ComplianceCaseResult
 
-def evaluate_compliance_case(case_id: str) -> ComplianceCaseResult:
+def evaluate_compliance_case(case_id: str, policy_version: str | None = None) -> ComplianceCaseResult:
     identity=build_identity_profile(case_id)
-    monitoring=evaluate_transactions(case_id)
+    monitoring=evaluate_transactions(case_id, policy_version)
     reasons=[]
     disposition='CLEAR'
     if identity.identity_status == 'REJECTED':
@@ -23,4 +23,4 @@ def evaluate_compliance_case(case_id: str) -> ComplianceCaseResult:
         disposition='REVIEW'; reasons.append('TRANSACTION_MONITORING_MEDIUM_RISK'); reasons.extend(triggering_patterns)
     if not reasons: reasons=['NO_ESCALATION_TRIGGERED']
     lineage=identity.evidence_refs + [f'transactions:{case_id}'] + [f'alert:{a.alert_id}' for a in monitoring.alerts]
-    return ComplianceCaseResult(case_id=case_id, disposition=disposition, reason_codes=reasons, identity=identity, monitoring=monitoring, policy_version=POLICY_VERSION, evidence_lineage=lineage)
+    return ComplianceCaseResult(case_id=case_id, disposition=disposition, reason_codes=reasons, identity=identity, monitoring=monitoring, policy_version=monitoring.policy_version, evidence_lineage=lineage)

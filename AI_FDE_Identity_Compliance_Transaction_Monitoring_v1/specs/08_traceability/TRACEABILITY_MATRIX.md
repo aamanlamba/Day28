@@ -9,7 +9,7 @@
 | CMP-FR-003 | AC-CMP-004 | event-time sorting/window logic, CASE-010 | PASS |
 | CMP-FR-004 | AC-CMP-001/002/004/005/006 | pattern functions in `src/monitoring.py` | PASS |
 | CMP-FR-005 | AC-CMP-002/005 | `src/identity.py` + `src/monitoring.py` | PASS |
-| CMP-FR-006 | AC-INT-003 | `POLICY_VERSION`, alert/integrated models | PASS |
+| CMP-FR-006 | AC-INT-003 | `src/policy.py` (versioned lookup table), `tests/test_policy.py` (includes a replay test reproducing a past decision after the current policy changes) | PASS |
 | CMP-FR-007 | AC-INT-003/004 | `evidence_refs`, `evidence_lineage` | PASS |
 | CMP-FR-008 | AC-INT-001/002 | `src/compliance.py` | PASS |
 | Training challenge coverage | all | `docs/15_integrated_engineering_challenges.md`, `challenges/CH-01..15.md` | PASS |

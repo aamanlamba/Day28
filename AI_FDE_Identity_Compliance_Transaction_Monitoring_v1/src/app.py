@@ -58,12 +58,13 @@ def identity_profile(case_id: str):
     return build_identity_profile(case_id)
 
 @app.post('/v2/monitoring/cases/{case_id}/evaluate', response_model=MonitoringResult)
-def transaction_monitoring(case_id: str):
-    return evaluate_transactions(case_id)
+def transaction_monitoring(case_id: str, policy_version: str | None = None):
+    # CH-14: optional replay - re-evaluate against a specific past policy version.
+    return evaluate_transactions(case_id, policy_version)
 
 @app.post('/v2/compliance/cases/{case_id}/evaluate', response_model=ComplianceCaseResult)
-def compliance_case(case_id: str):
-    return evaluate_compliance_case(case_id)
+def compliance_case(case_id: str, policy_version: str | None = None):
+    return evaluate_compliance_case(case_id, policy_version)
 
 @app.post('/v2/compliance/cases/{case_id}/review', response_model=ReviewDecision)
 def review_case(case_id: str, req: ReviewDecisionRequest):

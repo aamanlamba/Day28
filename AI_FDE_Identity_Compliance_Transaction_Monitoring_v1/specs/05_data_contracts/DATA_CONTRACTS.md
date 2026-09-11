@@ -34,6 +34,12 @@
 - `evidence_refs[]`
 - `policy_version`
 
+## MonitoringResult
+- `case_id`, `overall_risk = LOW | MEDIUM | HIGH | CRITICAL`
+- `alerts[]` (`MonitoringAlert`)
+- `received_transaction_count`, `processed_transaction_count`, `hook_warnings[]`
+- `policy_version` — populated even when `alerts` is empty (CH-14)
+
 ## ComplianceCaseResult
 - `case_id`
 - `disposition = CLEAR | REVIEW | ESCALATE`
@@ -42,6 +48,12 @@
 - embedded `MonitoringResult`
 - `policy_version`
 - `evidence_lineage[]`
+
+`policy_version` on `MonitoringAlert`/`MonitoringResult`/`ComplianceCaseResult` is resolved
+from `src/policy.py`'s versioned threshold table (CH-14), not a bare constant — a past
+decision can be reproduced by passing the same `policy_version` back in, even after the
+current policy has changed. See `specs/09_change_requests/` for any proposed changes to
+threshold values, which should always add a new version rather than editing an existing one.
 
 ## ReviewDecision (CH-13)
 Append-only; never overwrites `ComplianceCaseResult` — layered on top of it.
