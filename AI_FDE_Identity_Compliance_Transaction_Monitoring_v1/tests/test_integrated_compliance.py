@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from src.compliance import evaluate_compliance_case
 from src.monitoring import evaluate_transactions
 from src.identity import build_identity_profile
@@ -62,6 +63,57 @@ def test_structuring_pattern_creates_alert():
     codes = {a.pattern_code for a in m.alerts}
     assert 'TM_STRUCTURING' in codes
     assert m.overall_risk in ('HIGH','CRITICAL')
+
+
+def _structuring_batch(amounts_and_offsets_hours):
+    def tx(i, amount, offset_hours):
+        base = datetime(2026, 9, 1, 0, 0, 0, tzinfo=timezone.utc) + timedelta(hours=offset_hours)
+        return {
+            'transaction_id': f'TS{i}', 'case_id': 'CASE-001',
+            'timestamp': base.isoformat(), 'direction': 'CREDIT',
+            'amount': amount, 'currency': 'USD', 'counterparty_id': 'CP-X',
+            'counterparty_country': 'IN', 'channel': 'TRANSFER', 'device_id': 'DEV-1',
+        }
+    return [tx(i, amount, offset) for i, (amount, offset) in enumerate(amounts_and_offsets_hours)]
+
+
+def _has_structuring_alert(monkeypatch, transactions):
+    monkeypatch.setattr('src.monitoring.load_json',
+                         lambda folder, ident: {'case_id': 'CASE-001', 'transactions': transactions})
+    m = evaluate_transactions('CASE-001')
+    return any(a.pattern_code == 'TM_STRUCTURING' for a in m.alerts)
+
+
+def test_structuring_count_boundary(monkeypatch):
+    # Below the 3-transaction minimum: no alert.
+    two = _structuring_batch([(9000, 0), (9000, 1)])
+    assert not _has_structuring_alert(monkeypatch, two)
+    # At the 3-transaction minimum: alert.
+    three = _structuring_batch([(9000, 0), (9000, 1), (9000, 2)])
+    assert _has_structuring_alert(monkeypatch, three)
+
+
+def test_structuring_amount_lower_boundary(monkeypatch):
+    just_under = _structuring_batch([(7999, 0), (7999, 1), (7999, 2)])
+    assert not _has_structuring_alert(monkeypatch, just_under)
+    at_boundary = _structuring_batch([(8000, 0), (8000, 1), (8000, 2)])
+    assert _has_structuring_alert(monkeypatch, at_boundary)
+
+
+def test_structuring_amount_upper_boundary(monkeypatch):
+    just_under = _structuring_batch([(9999, 0), (9999, 1), (9999, 2)])
+    assert _has_structuring_alert(monkeypatch, just_under)
+    at_boundary = _structuring_batch([(10000, 0), (10000, 1), (10000, 2)])
+    assert not _has_structuring_alert(monkeypatch, at_boundary)
+
+
+def test_structuring_window_boundary(monkeypatch):
+    # Exactly 24h apart (0h, 12h, 24h): inclusive upper bound of the window - alert.
+    within_window = _structuring_batch([(9000, 0), (9000, 12), (9000, 24)])
+    assert _has_structuring_alert(monkeypatch, within_window)
+    # Each pair just over 24h01m apart: no single 24h window covers all three - no alert.
+    beyond_window = _structuring_batch([(9000, 0), (9000, 24.0167), (9000, 48.0334)])
+    assert not _has_structuring_alert(monkeypatch, beyond_window)
 
 
 def _two_cluster_structuring_events():

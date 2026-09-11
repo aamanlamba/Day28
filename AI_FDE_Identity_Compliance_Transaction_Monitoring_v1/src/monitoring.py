@@ -7,6 +7,13 @@ from .models_v2 import TransactionEvent, MonitoringAlert, MonitoringResult
 
 POLICY_VERSION='tm-policy-2026.09-synthetic'
 HIGH_RISK_COUNTRIES={'XQ','ZR'}
+# CH-08: named so the structuring policy is externally visible rather than inline magic
+# numbers. Still plain constants pending Prompt 14's general versioning mechanism, which
+# should formalize these into a real versioned policy source (e.g. config/baseline.json).
+STRUCTURING_MIN_AMOUNT=8000
+STRUCTURING_MAX_AMOUNT=10000
+STRUCTURING_MIN_COUNT=3
+STRUCTURING_WINDOW=timedelta(hours=24)
 
 def _dt(s: str) -> datetime:
     return datetime.fromisoformat(s.replace('Z','+00:00'))
@@ -53,10 +60,10 @@ def evaluate_transactions(case_id: str) -> MonitoringResult:
     evidence_base=[f'identity:{case_id}'] + profile.evidence_refs
 
     # Pattern 1: structuring / threshold avoidance: 3+ same-direction transfers clustered just below 10k in 24h
-    near=[t for t in txs if 8000 <= t.amount < 10000 and t.direction=='CREDIT']
+    near=[t for t in txs if STRUCTURING_MIN_AMOUNT <= t.amount < STRUCTURING_MAX_AMOUNT and t.direction=='CREDIT']
     for anchor in near:
-        window=[t for t in near if abs(_dt(t.timestamp)-_dt(anchor.timestamp)) <= timedelta(hours=24)]
-        if len(window) >= 3:
+        window=[t for t in near if abs(_dt(t.timestamp)-_dt(anchor.timestamp)) <= STRUCTURING_WINDOW]
+        if len(window) >= STRUCTURING_MIN_COUNT:
             alerts.append(_alert(case_id,'TM_STRUCTURING','HIGH',0.90,['3+ credits between 8,000 and 9,999 within 24h','RULE_THRESHOLD_AVOIDANCE'],window,evidence_base)); break
 
     # Pattern 2: rapid velocity: 5+ events in 60 minutes
