@@ -42,3 +42,14 @@
 - embedded `MonitoringResult`
 - `policy_version`
 - `evidence_lineage[]`
+
+## ReviewDecision (CH-13)
+Append-only; never overwrites `ComplianceCaseResult` — layered on top of it.
+- `decision_id`, `case_id`
+- `reviewer_id`, `reviewer_role = ANALYST | SUPERVISOR` — currently self-declared by the
+  caller, not authenticated (see `specs/09_change_requests/CR-002-review-authorization.md`)
+- `timestamp`
+- `prior_disposition`, `new_disposition` (both `CLEAR | REVIEW | ESCALATE`)
+- `rationale`
+- `case_policy_version`, `case_evidence_lineage[]` — the evidence version this decision was
+  made against

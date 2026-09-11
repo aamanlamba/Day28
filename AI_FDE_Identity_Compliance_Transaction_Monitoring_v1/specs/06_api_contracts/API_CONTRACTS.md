@@ -15,6 +15,8 @@
 | POST | `/v2/identity/cases/{case_id}/profile` | Resolve identity profile from document evidence + KYC context |
 | POST | `/v2/monitoring/cases/{case_id}/evaluate` | Replay/evaluate transaction hooks for one synthetic case |
 | POST | `/v2/compliance/cases/{case_id}/evaluate` | Fuse identity and monitoring evidence into a governed disposition |
+| POST | `/v2/compliance/cases/{case_id}/review` | Record a governed, append-only human-review decision (CH-13); never mutates the evaluation above |
+| GET | `/v2/compliance/cases/{case_id}/reviews` | List the append-only review-decision history for a case |
 
 ## Contract rules
 - `/v1` response shapes and six-case catalog remain stable.
@@ -22,3 +24,7 @@
 - transaction IDs are idempotency keys.
 - alert outputs include policy version and evidence references.
 - correlation IDs continue to be returned by middleware.
+- review decisions are append-only and never rewrite `evaluate_compliance_case`'s
+  deterministic output; downgrading a disposition requires `reviewer_role: SUPERVISOR`.
+  `reviewer_id`/`reviewer_role` are currently self-declared, not authenticated — see
+  `specs/09_change_requests/CR-002-review-authorization.md`.

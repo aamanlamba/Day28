@@ -46,7 +46,12 @@ def case_verify(case_id: str): return verify_case(case_id)
 from .identity import build_identity_profile
 from .monitoring import evaluate_transactions
 from .compliance import evaluate_compliance_case
-from .models_v2 import IdentityProfile, MonitoringResult, ComplianceCaseResult
+from .review import submit_review_decision, list_review_decisions, UnauthorizedReviewAction
+from .models_v2 import IdentityProfile, MonitoringResult, ComplianceCaseResult, ReviewDecision, ReviewDecisionRequest
+
+@app.exception_handler(UnauthorizedReviewAction)
+async def unauthorized_review(_request, exc):
+    return JSONResponse(status_code=403,content={'detail':str(exc)})
 
 @app.post('/v2/identity/cases/{case_id}/profile', response_model=IdentityProfile)
 def identity_profile(case_id: str):
@@ -59,3 +64,13 @@ def transaction_monitoring(case_id: str):
 @app.post('/v2/compliance/cases/{case_id}/evaluate', response_model=ComplianceCaseResult)
 def compliance_case(case_id: str):
     return evaluate_compliance_case(case_id)
+
+@app.post('/v2/compliance/cases/{case_id}/review', response_model=ReviewDecision)
+def review_case(case_id: str, req: ReviewDecisionRequest):
+    # CH-13: governed, auditable HITL override channel - never mutates the deterministic
+    # evaluation above; see src/review.py.
+    return submit_review_decision(case_id, req.reviewer_id, req.reviewer_role, req.new_disposition, req.rationale)
+
+@app.get('/v2/compliance/cases/{case_id}/reviews', response_model=list[ReviewDecision])
+def review_history(case_id: str):
+    return list_review_decisions(case_id)

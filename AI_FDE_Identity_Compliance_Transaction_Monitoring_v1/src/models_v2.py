@@ -57,3 +57,25 @@ class ComplianceCaseResult(BaseModel):
     monitoring: MonitoringResult
     policy_version: str
     evidence_lineage: list[str]
+
+ReviewerRole = Literal["ANALYST","SUPERVISOR"]
+
+class ReviewDecision(BaseModel):
+    """CH-13: a governed, append-only override record. Never mutates the
+    rule/model-derived ComplianceCaseResult it was made against - it is layered on top."""
+    decision_id: str
+    case_id: str
+    reviewer_id: str
+    reviewer_role: ReviewerRole
+    timestamp: str
+    prior_disposition: Disposition
+    new_disposition: Disposition
+    rationale: str
+    case_policy_version: str
+    case_evidence_lineage: list[str]
+
+class ReviewDecisionRequest(BaseModel):
+    reviewer_id: str = Field(min_length=1, max_length=80)
+    reviewer_role: ReviewerRole
+    new_disposition: Disposition
+    rationale: str = Field(min_length=1, max_length=500)
