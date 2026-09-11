@@ -22,10 +22,22 @@ def _dedupe(events):
         seen.add(e.transaction_id); out.append(e)
     return out, sorted(set(warnings))
 
+def _filter_case_mismatch(events, case_id):
+    """CH-01: an event's own case_id must agree with the case it was loaded under.
+    A disagreeing event is a false-join risk and must be quarantined, not trusted."""
+    out=[]; warnings=[]
+    for e in events:
+        if e.case_id != case_id:
+            warnings.append('TRANSACTION_CASE_ID_MISMATCH'); continue
+        out.append(e)
+    return out, sorted(set(warnings))
+
 def evaluate_transactions(case_id: str) -> MonitoringResult:
     raw=load_json('transactions', case_id)
     received=[TransactionEvent(**x) for x in raw['transactions']]
-    txs,warnings=_dedupe(received)
+    linked,mismatch_warnings=_filter_case_mismatch(received, case_id)
+    txs,dedupe_warnings=_dedupe(linked)
+    warnings=sorted(set(mismatch_warnings+dedupe_warnings))
     profile=build_identity_profile(case_id)
     alerts=[]
     evidence_base=[f'identity:{case_id}'] + profile.evidence_refs

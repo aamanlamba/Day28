@@ -68,3 +68,31 @@ def test_explanations_carry_policy_and_evidence_lineage():
     assert r.evidence_lineage
     assert all(a.policy_version for a in r.monitoring.alerts)
     assert all(a.evidence_refs for a in r.monitoring.alerts)
+
+
+def test_transaction_with_mismatched_case_id_is_quarantined(monkeypatch):
+    # CH-01: a transaction event whose own case_id disagrees with the case it was
+    # loaded under must never be silently trusted (false-join risk).
+    mismatched_batch = {
+        'case_id': 'CASE-005',
+        'transactions': [
+            {
+                'transaction_id': 'T501', 'case_id': 'CASE-005',
+                'timestamp': '2026-09-01T09:00:00+00:00', 'direction': 'CREDIT',
+                'amount': 2100, 'currency': 'USD', 'counterparty_id': 'CP-001',
+                'counterparty_country': 'IN', 'channel': 'TRANSFER', 'device_id': 'DEV-1',
+            },
+            {
+                'transaction_id': 'T502', 'case_id': 'CASE-999-WRONG',
+                'timestamp': '2026-09-01T10:00:00+00:00', 'direction': 'CREDIT',
+                'amount': 500, 'currency': 'USD', 'counterparty_id': 'CP-002',
+                'counterparty_country': 'IN', 'channel': 'TRANSFER', 'device_id': 'DEV-2',
+            },
+        ],
+    }
+    monkeypatch.setattr('src.monitoring.load_json', lambda folder, ident: mismatched_batch)
+    m = evaluate_transactions('CASE-005')
+    assert 'TRANSACTION_CASE_ID_MISMATCH' in m.hook_warnings
+    assert m.received_transaction_count == 2
+    assert m.processed_transaction_count == 1
+    assert all(t_id != 'T502' for a in m.alerts for t_id in a.transaction_ids)
