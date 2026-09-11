@@ -11,6 +11,9 @@ def evaluate_compliance_case(case_id: str) -> ComplianceCaseResult:
         disposition='ESCALATE'; reasons.append('IDENTITY_NOT_VERIFIED')
     elif identity.identity_status == 'REVIEW':
         disposition='REVIEW'; reasons.append('IDENTITY_REQUIRES_REVIEW')
+    if 'KYC_REFRESH_DUE' in identity.risk_flags:
+        # CH-04: staleness must be explainable, not folded into a generic identity reason.
+        reasons.append('KYC_REFRESH_DUE')
     if monitoring.overall_risk in ('HIGH','CRITICAL'):
         disposition='ESCALATE'; reasons.append('TRANSACTION_MONITORING_HIGH_RISK')
     elif monitoring.overall_risk == 'MEDIUM' and disposition=='CLEAR':

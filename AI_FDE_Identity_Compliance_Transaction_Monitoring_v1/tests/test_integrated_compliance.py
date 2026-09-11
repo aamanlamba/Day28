@@ -70,6 +70,29 @@ def test_stale_or_rejected_identity_forces_review_even_when_transactions_normal(
     assert 'IDENTITY_NOT_VERIFIED' in r.reason_codes
 
 
+def test_kyc_refresh_due_surfaces_a_specific_reason_code(monkeypatch):
+    # CH-04: staleness must be explainable at the disposition level, not just folded
+    # into a generic "identity requires review" reason.
+    case = CaseResult(
+        case_id='CASE-TEST-KYC', decision='APPROVE', reason_codes=['BASELINE_RULES_PASSED'],
+        documents=[
+            DocumentResult(document_id='CASE-TEST-KYC-D1', decision='APPROVE',
+                            reason_codes=['BASELINE_RULES_PASSED'],
+                            parsed_fields={'full_name': 'Test Person', 'date_of_birth': '1990-01-01'},
+                            completeness=1.0, warnings=[]),
+        ],
+        limitation_notice='n/a',
+    )
+    monkeypatch.setattr('src.identity.verify_case', lambda cid: case)
+    monkeypatch.setattr('src.identity.load_json', lambda folder, ident: {'kyc_refresh_due': True})
+    monkeypatch.setattr('src.monitoring.load_json', lambda folder, ident: {'case_id': 'CASE-TEST-KYC', 'transactions': []})
+    r = evaluate_compliance_case('CASE-TEST-KYC')
+    assert r.identity.identity_status == 'REVIEW'
+    assert 'KYC_REFRESH_DUE' in r.identity.risk_flags
+    assert r.disposition == 'REVIEW'
+    assert 'KYC_REFRESH_DUE' in r.reason_codes
+
+
 def test_duplicate_transaction_hook_is_idempotently_suppressed():
     m = evaluate_transactions('CASE-009')
     assert 'DUPLICATE_EVENT_SUPPRESSED' in m.hook_warnings
