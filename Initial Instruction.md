@@ -1,0 +1,3 @@
+# Initial instructions to generate prompts with Claude
+
+Review this repo. It contains instructions for Cursor and 15 Engineering challenges as documented in the file Engineering_Challenges_in_Repo_1.0.pdf Create a series of prompts to work through these engineering challenges step by step. Stop after creating the Prompts for review before running any prompt. Save each prompt as a Markdown file. Do not change anything in the code folder "AI_FDE_Identity_Compliance_Transaction_Monitoring_V1 yet. Our goal will be to work through each of the challenges to make a v2 of this folder.
