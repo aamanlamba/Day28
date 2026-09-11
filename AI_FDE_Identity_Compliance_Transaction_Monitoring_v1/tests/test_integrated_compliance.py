@@ -64,6 +64,49 @@ def test_structuring_pattern_creates_alert():
     assert m.overall_risk in ('HIGH','CRITICAL')
 
 
+def _two_cluster_structuring_events():
+    # Uses CASE-001's real case_id so build_identity_profile resolves against real
+    # application/customer_context fixtures; only the transactions payload is faked.
+    def tx(tid, day, hour):
+        return {
+            'transaction_id': tid, 'case_id': 'CASE-001',
+            'timestamp': f'2026-09-{day:02d}T{hour:02d}:00:00+00:00', 'direction': 'CREDIT',
+            'amount': 9000, 'currency': 'USD', 'counterparty_id': 'CP-X',
+            'counterparty_country': 'IN', 'channel': 'TRANSFER', 'device_id': 'DEV-1',
+        }
+    cluster_a = [tx('TA1', 1, 8), tx('TA2', 1, 10), tx('TA3', 1, 12)]
+    cluster_b = [tx('TB1', 4, 8), tx('TB2', 4, 10), tx('TB3', 4, 12)]  # >24h after cluster A
+    return cluster_a, cluster_b
+
+
+def _structuring_alert_ids(monkeypatch, transactions):
+    monkeypatch.setattr('src.monitoring.load_json',
+                         lambda folder, ident: {'case_id': 'CASE-001', 'transactions': transactions})
+    m = evaluate_transactions('CASE-001')
+    alerts = [a for a in m.alerts if a.pattern_code == 'TM_STRUCTURING']
+    assert len(alerts) == 1
+    return set(alerts[0].transaction_ids)
+
+
+def test_structuring_window_is_independent_of_delivery_order(monkeypatch):
+    # CH-07: with two non-overlapping qualifying clusters, which one gets reported must
+    # depend on event time, not on the arbitrary order events happened to arrive in.
+    cluster_a, cluster_b = _two_cluster_structuring_events()
+    forward_ids = _structuring_alert_ids(monkeypatch, cluster_a + cluster_b)
+    reversed_ids = _structuring_alert_ids(monkeypatch, list(reversed(cluster_b + cluster_a)))
+    assert forward_ids == reversed_ids == {'TA1', 'TA2', 'TA3'}
+
+
+def test_structuring_window_handles_late_arriving_events(monkeypatch):
+    # CH-07: events belonging to the chronologically-earliest cluster must still be
+    # correctly identified even when they are appended to the delivery list last (i.e.
+    # they arrive "late" relative to their actual business timestamp).
+    cluster_a, cluster_b = _two_cluster_structuring_events()
+    late_arrival_order = cluster_b + cluster_a  # cluster A (earliest) delivered last
+    ids = _structuring_alert_ids(monkeypatch, late_arrival_order)
+    assert ids == {'TA1', 'TA2', 'TA3'}
+
+
 def test_high_risk_corridor_is_strengthened_by_identity_context():
     r = evaluate_compliance_case('CASE-008')
     codes = {a.pattern_code for a in r.monitoring.alerts}

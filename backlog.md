@@ -29,6 +29,7 @@ side effect of a later numbered prompt before they need separate work.
 | BL-006 | Change Request | Prompt 03 | Retain per-field match/mismatch evidence on `IdentityProfile` | Open |
 | BL-007 | Change Request | Prompt 05 | `occupation` is captured but consumed by no rule | Open |
 | BL-008 | Change Request | Prompt 05 | Expected-counterparty-country baseline field | Open |
+| BL-009 | Change Request | Prompt 07 | No point-in-time KYC-context reconstruction for late events | Open |
 
 ## BL-001 — Document-id-to-case-id linkage is unvalidated
 
@@ -188,3 +189,21 @@ side effect of a later numbered prompt before they need separate work.
 - **Suggested next step:** Revisit when Prompt 09 or 10 is run; decide there whether a new
   `IdentityProfile` field is actually needed or whether `residency_country` (already present)
   is sufficient for the corridor/velocity fusion logic.
+
+## BL-009 — No point-in-time KYC-context reconstruction for late events
+
+- **Type:** Change Request
+- **Source:** Prompt 07 forensics
+- **Status:** Open
+- **Description:** `prompts/07-out-of-order-and-late-events.md`'s desired outcome includes
+  reconstructing "the customer/KYC context as it existed at the event's business timestamp,
+  not whatever the current-request-time context happens to be" for late-arriving events.
+  Today `build_identity_profile` always reflects the *current* `customer_context` fixture —
+  there is no history of past identity/KYC states, and no persistence layer at all to derive
+  one from.
+- **Why deferred:** This requires a versioned identity-history store keyed by time — a
+  significant architecture addition (persistence, snapshotting, point-in-time query), not a
+  "smallest safe change." No existing data model or spec supports it.
+- **Suggested next step:** Would need its own design (likely its own prompt/spec), scoped
+  around what "point-in-time identity state" should mean and how it would be persisted —
+  well beyond fixing the windowing-order bug this prompt targets.

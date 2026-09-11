@@ -43,7 +43,10 @@ def evaluate_transactions(case_id: str) -> MonitoringResult:
     raw=load_json('transactions', case_id)
     received=[TransactionEvent(**x) for x in raw['transactions']]
     linked,mismatch_warnings=_filter_case_mismatch(received, case_id)
-    txs,dedupe_warnings=_dedupe(linked)
+    deduped,dedupe_warnings=_dedupe(linked)
+    # CH-07: pattern windows must be computed in event-time order, not delivery order,
+    # so which window/cluster is reported never depends on arrival sequence.
+    txs=sorted(deduped, key=lambda t: _dt(t.timestamp))
     warnings=sorted(set(mismatch_warnings+dedupe_warnings))
     profile=build_identity_profile(case_id)
     alerts=[]
