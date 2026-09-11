@@ -166,6 +166,68 @@ def test_high_risk_corridor_is_strengthened_by_identity_context():
     assert any('IDENTITY_CONTEXT' in reason for a in r.monitoring.alerts for reason in a.reasons)
 
 
+def _corridor_batch():
+    return [{
+        'transaction_id': 'TC1', 'case_id': 'CASE-001',
+        'timestamp': '2026-09-01T09:00:00+00:00', 'direction': 'CREDIT',
+        'amount': 100, 'currency': 'USD', 'counterparty_id': 'CP-X',
+        'counterparty_country': 'XQ', 'channel': 'TRANSFER', 'device_id': 'DEV-1',
+    }]
+
+
+def _clean_identity_profile(**overrides):
+    from src.models_v2 import IdentityProfile
+    fields = dict(
+        case_id='CASE-001', canonical_name='Test Person', date_of_birth='1990-01-01',
+        residency_country='IN', nationality='Republic of Meridian', occupation='engineer',
+        expected_monthly_turnover=10000, identity_status='VERIFIED', confidence=0.97,
+        risk_flags=[], evidence_refs=['document:CASE-001-D1'],
+    )
+    fields.update(overrides)
+    return IdentityProfile(**fields)
+
+
+def _corridor_alert(monkeypatch, profile):
+    monkeypatch.setattr('src.monitoring.build_identity_profile', lambda cid: profile)
+    monkeypatch.setattr('src.monitoring.load_json',
+                         lambda folder, ident: {'case_id': 'CASE-001', 'transactions': _corridor_batch()})
+    m = evaluate_transactions('CASE-001')
+    alerts = [a for a in m.alerts if a.pattern_code == 'TM_HIGH_RISK_CORRIDOR']
+    assert len(alerts) == 1
+    return alerts[0]
+
+
+def test_corridor_baseline_stays_medium_with_clean_identity(monkeypatch):
+    alert = _corridor_alert(monkeypatch, _clean_identity_profile())
+    assert alert.severity == 'MEDIUM'
+    assert not any('IDENTITY_CONTEXT' in r for r in alert.reasons)
+
+
+def test_corridor_escalates_and_cites_identity_status(monkeypatch):
+    alert = _corridor_alert(monkeypatch, _clean_identity_profile(identity_status='REVIEW'))
+    assert alert.severity == 'HIGH'
+    assert any('identity_status=REVIEW' in r for r in alert.reasons)
+    assert not any('KYC_REFRESH_DUE' in r or 'DOCUMENT_QUALITY_DEGRADED' in r for r in alert.reasons)
+
+
+def test_corridor_escalates_and_cites_kyc_refresh_due(monkeypatch):
+    alert = _corridor_alert(monkeypatch, _clean_identity_profile(risk_flags=['KYC_REFRESH_DUE']))
+    assert alert.severity == 'HIGH'
+    assert any('KYC_REFRESH_DUE' in r for r in alert.reasons)
+    assert not any('identity_status=' in r or 'DOCUMENT_QUALITY_DEGRADED' in r for r in alert.reasons)
+
+
+def test_corridor_escalates_and_cites_document_quality_degraded(monkeypatch):
+    # CH-10: identity confidence must independently influence corridor severity, even
+    # when the decision outcome itself remains VERIFIED (Prompt 02's design keeps these
+    # axes separate) - previously this case had zero effect on corridor fusion.
+    alert = _corridor_alert(monkeypatch, _clean_identity_profile(
+        confidence=0.5, risk_flags=['DOCUMENT_QUALITY_DEGRADED']))
+    assert alert.severity == 'HIGH'
+    assert any('DOCUMENT_QUALITY_DEGRADED' in r for r in alert.reasons)
+    assert not any('identity_status=' in r or 'KYC_REFRESH_DUE' in r for r in alert.reasons)
+
+
 def test_stale_or_rejected_identity_forces_review_even_when_transactions_normal():
     r = evaluate_compliance_case('CASE-004')
     assert r.identity.identity_status == 'REJECTED'

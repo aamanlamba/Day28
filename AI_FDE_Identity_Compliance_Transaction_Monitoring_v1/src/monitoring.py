@@ -76,13 +76,25 @@ def evaluate_transactions(case_id: str) -> MonitoringResult:
         if len(window)>=VELOCITY_MIN_COUNT:
             alerts.append(_alert(case_id,'TM_RAPID_VELOCITY','HIGH',0.86,['5+ transactions observed within a 60-minute sliding window'],window,evidence_base)); break
 
-    # Pattern 3: high-risk corridor; identity risk context strengthens severity/explanation
+    # Pattern 3: high-risk corridor; identity risk context strengthens severity/explanation.
+    # CH-10: each condition is checked and cited independently so an alert names exactly
+    # which identity field(s) drove the escalation, not a single generic sentence.
     corridor=[t for t in txs if t.counterparty_country in HIGH_RISK_COUNTRIES]
     if corridor:
         reasons=['counterparty country is in synthetic high-risk corridor set']
-        sev='MEDIUM'; score=.68
-        if profile.identity_status != 'VERIFIED' or profile.residency_country in HIGH_RISK_COUNTRIES or 'KYC_REFRESH_DUE' in profile.risk_flags:
-            reasons.append('IDENTITY_CONTEXT: unresolved/stale/high-risk identity context increases monitoring concern'); sev='HIGH'; score=.88
+        context_reasons=[]
+        if profile.identity_status != 'VERIFIED':
+            context_reasons.append(f'IDENTITY_CONTEXT: identity_status={profile.identity_status} (not VERIFIED)')
+        if profile.residency_country in HIGH_RISK_COUNTRIES:
+            context_reasons.append(f'IDENTITY_CONTEXT: residency_country={profile.residency_country} is in the high-risk corridor set')
+        if 'KYC_REFRESH_DUE' in profile.risk_flags:
+            context_reasons.append('IDENTITY_CONTEXT: KYC_REFRESH_DUE')
+        if 'DOCUMENT_QUALITY_DEGRADED' in profile.risk_flags:
+            context_reasons.append('IDENTITY_CONTEXT: DOCUMENT_QUALITY_DEGRADED (weak evidence confidence)')
+        if context_reasons:
+            reasons.extend(context_reasons); sev='HIGH'; score=.88
+        else:
+            sev='MEDIUM'; score=.68
         alerts.append(_alert(case_id,'TM_HIGH_RISK_CORRIDOR',sev,score,reasons,corridor,evidence_base))
 
     # Pattern 4: expected activity deviation from KYC profile
