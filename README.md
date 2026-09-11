@@ -15,7 +15,8 @@ up with a hardened `v2` of that service — not a rewrite.
 | `Engineering_challenge_workflow.pdf` | One-page pipeline diagram the challenges are embedded across. |
 | `Production-Grade_Engineering_Transformation_Prompt.pdf` | Source of `CLAUDE.md` (identical content, exported as a PDF template). |
 | `Initial Instruction.md` | The original task instruction that kicked this off. |
-| `prompts/` | The 18-prompt series that works through the 15 challenges one at a time. **Drafted, not yet run.** |
+| `prompts/` | The 18-prompt series that works through the 15 challenges one at a time. **Reference copies — never edited after being run**, so any prompt can be re-run later exactly as originally drafted. |
+| `results/` | One results file per prompt actually run, named to match (`00-repository-forensic-pass.md`, `01-...md`, …). This is where forensics findings, command output, and evidence live — kept separate from `prompts/` so the prompts stay pristine and reusable. |
 
 ## The approach
 
@@ -76,5 +77,8 @@ evidence-case mapping per challenge, is in `prompts/README.md`.
 
 ## Status
 
-Prompts are drafted and awaiting review. Nothing in
-`AI_FDE_Identity_Compliance_Transaction_Monitoring_v1/` has been modified.
+- Prompt 00 (repository forensic pass) has been run. Results: `results/00-repository-forensic-pass.md`.
+  No code change — it was a read-only pass. Baseline is green (preflight, sanity check,
+  32 pytest tests, smoke server all pass).
+- Prompts 01–16 have not been run yet. Nothing in
+  `AI_FDE_Identity_Compliance_Transaction_Monitoring_v1/` has been modified.
