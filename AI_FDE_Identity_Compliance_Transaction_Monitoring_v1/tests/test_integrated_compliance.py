@@ -1,6 +1,7 @@
 from src.compliance import evaluate_compliance_case
 from src.monitoring import evaluate_transactions
 from src.identity import build_identity_profile
+from src.models import DocumentResult, CaseResult
 
 
 def test_identity_profile_surfaces_cross_document_name_conflict():
@@ -68,6 +69,52 @@ def test_explanations_carry_policy_and_evidence_lineage():
     assert r.evidence_lineage
     assert all(a.policy_version for a in r.monitoring.alerts)
     assert all(a.evidence_refs for a in r.monitoring.alerts)
+
+
+def test_identity_confidence_penalized_by_document_quality_warning(monkeypatch):
+    # CH-02: a document-level OCR-quality warning must reduce identity confidence, not
+    # be discarded once the document decision is aggregated into a case.
+    case = CaseResult(
+        case_id='CASE-TEST-Q', decision='REVIEW', reason_codes=['MANUAL_REVIEW_REQUIRED'],
+        documents=[
+            DocumentResult(document_id='CASE-TEST-Q-D1', decision='APPROVE',
+                            reason_codes=['BASELINE_RULES_PASSED'],
+                            parsed_fields={'full_name': 'Test Person', 'date_of_birth': '1990-01-01'},
+                            completeness=1.0, warnings=[]),
+            DocumentResult(document_id='CASE-TEST-Q-D2', decision='REVIEW',
+                            reason_codes=['MANUAL_REVIEW_REQUIRED'],
+                            parsed_fields={'full_name': 'Test Person', 'date_of_birth': '1990-01-01'},
+                            completeness=1.0, warnings=['DEGRADED_OCR_QUALITY']),
+        ],
+        limitation_notice='n/a',
+    )
+    monkeypatch.setattr('src.identity.verify_case', lambda cid: case)
+    p = build_identity_profile('CASE-TEST-Q')
+    assert 'DOCUMENT_QUALITY_DEGRADED' in p.risk_flags
+    assert p.confidence < 0.70
+
+
+def test_identity_confidence_penalized_by_incomplete_document_even_when_verified(monkeypatch):
+    # CH-02: incomplete field extraction must reduce confidence even when the decision
+    # outcome itself stays VERIFIED.
+    case = CaseResult(
+        case_id='CASE-TEST-C', decision='APPROVE', reason_codes=['BASELINE_RULES_PASSED'],
+        documents=[
+            DocumentResult(document_id='CASE-TEST-C-D1', decision='APPROVE',
+                            reason_codes=['BASELINE_RULES_PASSED'],
+                            parsed_fields={'full_name': 'Test Person', 'date_of_birth': '1990-01-01'},
+                            completeness=1.0, warnings=[]),
+            DocumentResult(document_id='CASE-TEST-C-D2', decision='APPROVE',
+                            reason_codes=['BASELINE_RULES_PASSED'],
+                            parsed_fields={'full_name': 'Test Person', 'date_of_birth': '1990-01-01'},
+                            completeness=0.75, warnings=[]),
+        ],
+        limitation_notice='n/a',
+    )
+    monkeypatch.setattr('src.identity.verify_case', lambda cid: case)
+    p = build_identity_profile('CASE-TEST-C')
+    assert p.identity_status == 'VERIFIED'
+    assert p.confidence < 0.97
 
 
 def test_transaction_with_mismatched_case_id_is_quarantined(monkeypatch):

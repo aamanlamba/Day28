@@ -4,6 +4,9 @@ from .service import verify_case
 from .repository import load_json
 from .models_v2 import IdentityProfile
 
+QUALITY_WARNING_CODES = {'DEGRADED_OCR_QUALITY', 'OCR_QUALITY_DEGRADED', 'ROTATED_CAPTURE', 'ROTATED_DOCUMENT'}
+QUALITY_DEGRADED_CONFIDENCE_MULTIPLIER = 0.9  # CH-02: documented heuristic, not a calibrated probability
+
 def _norm_name(v: str) -> str:
     return re.sub(r"[^a-z0-9]", "", (v or "").lower())
 
@@ -36,7 +39,15 @@ def build_identity_profile(case_id: str) -> IdentityProfile:
     if ctx.get('kyc_refresh_due'):
         flags.append('KYC_REFRESH_DUE')
         if status == 'VERIFIED': status='REVIEW'
+    # CH-02: evidence quality (not just decision outcome) must reduce confidence, so
+    # downstream monitoring can distinguish trusted from disputed KYC facts.
+    quality_flags = {w for d in base.documents for w in d.warnings if w in QUALITY_WARNING_CODES}
+    worst_completeness = min((d.completeness for d in base.documents), default=1.0)
     confidence = 0.97 if status=='VERIFIED' else (0.70 if status=='REVIEW' else 0.20)
+    if quality_flags:
+        flags.append('DOCUMENT_QUALITY_DEGRADED')
+        confidence *= QUALITY_DEGRADED_CONFIDENCE_MULTIPLIER
+    confidence = round(confidence * worst_completeness, 3)
     canonical = ctx.get('canonical_name') or (names[0] if names else None)
     return IdentityProfile(
         case_id=case_id, canonical_name=canonical, date_of_birth=(dobs[0] if dobs else None),
