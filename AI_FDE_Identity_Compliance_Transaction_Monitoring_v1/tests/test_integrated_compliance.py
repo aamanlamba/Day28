@@ -238,9 +238,58 @@ def test_evaluate_transactions_is_replayable():
 
 
 def test_velocity_pattern_detected_over_sliding_window():
+    # CASE-010's real fixture already uses 6 distinct counterparties (CP-0..CP-5),
+    # implicitly covering the many-counterparties case for this pattern.
     m = evaluate_transactions('CASE-010')
     codes = {a.pattern_code for a in m.alerts}
     assert 'TM_RAPID_VELOCITY' in codes
+
+
+def _velocity_batch(offsets_minutes, counterparty_ids=None):
+    base = datetime(2026, 9, 1, 10, 0, 0, tzinfo=timezone.utc)
+    cids = counterparty_ids or [f'CP-{i}' for i in range(len(offsets_minutes))]
+    return [
+        {
+            'transaction_id': f'TV{i}', 'case_id': 'CASE-001',
+            'timestamp': (base + timedelta(minutes=m)).isoformat(), 'direction': 'DEBIT',
+            'amount': 100, 'currency': 'USD', 'counterparty_id': cid,
+            'counterparty_country': 'IN', 'channel': 'TRANSFER', 'device_id': 'DEV-1',
+        }
+        for i, (m, cid) in enumerate(zip(offsets_minutes, cids))
+    ]
+
+
+def _has_velocity_alert(monkeypatch, transactions):
+    monkeypatch.setattr('src.monitoring.load_json',
+                         lambda folder, ident: {'case_id': 'CASE-001', 'transactions': transactions})
+    m = evaluate_transactions('CASE-001')
+    return any(a.pattern_code == 'TM_RAPID_VELOCITY' for a in m.alerts)
+
+
+def test_velocity_zero_result_below_count(monkeypatch):
+    four = _velocity_batch([0, 10, 20, 30])
+    assert not _has_velocity_alert(monkeypatch, four)
+
+
+def test_velocity_count_boundary(monkeypatch):
+    four = _velocity_batch([0, 10, 20, 30])
+    assert not _has_velocity_alert(monkeypatch, four)
+    five = _velocity_batch([0, 10, 20, 30, 40])
+    assert _has_velocity_alert(monkeypatch, five)
+
+
+def test_velocity_window_boundary(monkeypatch):
+    within_window = _velocity_batch([0, 15, 30, 45, 60])
+    assert _has_velocity_alert(monkeypatch, within_window)
+    beyond_window = _velocity_batch([0, 15, 30, 45, 61])
+    assert not _has_velocity_alert(monkeypatch, beyond_window)
+
+
+def test_velocity_fires_regardless_of_counterparty_diversity(monkeypatch):
+    # Contrast with CASE-010's many-counterparties case above: a burst concentrated on a
+    # single counterparty must still trigger - this rule is a pure frequency check.
+    same_counterparty = _velocity_batch([0, 10, 20, 30, 40], counterparty_ids=['CP-SAME'] * 5)
+    assert _has_velocity_alert(monkeypatch, same_counterparty)
 
 
 def test_expected_activity_deviation_uses_kyc_profile():

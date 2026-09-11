@@ -14,6 +14,9 @@ STRUCTURING_MIN_AMOUNT=8000
 STRUCTURING_MAX_AMOUNT=10000
 STRUCTURING_MIN_COUNT=3
 STRUCTURING_WINDOW=timedelta(hours=24)
+# CH-09: same rationale as the structuring constants above.
+VELOCITY_MIN_COUNT=5
+VELOCITY_WINDOW=timedelta(minutes=60)
 
 def _dt(s: str) -> datetime:
     return datetime.fromisoformat(s.replace('Z','+00:00'))
@@ -69,8 +72,8 @@ def evaluate_transactions(case_id: str) -> MonitoringResult:
     # Pattern 2: rapid velocity: 5+ events in 60 minutes
     ordered=sorted(txs,key=lambda t:_dt(t.timestamp))
     for i,t in enumerate(ordered):
-        window=[x for x in ordered[i:] if _dt(x.timestamp)-_dt(t.timestamp) <= timedelta(minutes=60)]
-        if len(window)>=5:
+        window=[x for x in ordered[i:] if _dt(x.timestamp)-_dt(t.timestamp) <= VELOCITY_WINDOW]
+        if len(window)>=VELOCITY_MIN_COUNT:
             alerts.append(_alert(case_id,'TM_RAPID_VELOCITY','HIGH',0.86,['5+ transactions observed within a 60-minute sliding window'],window,evidence_base)); break
 
     # Pattern 3: high-risk corridor; identity risk context strengthens severity/explanation
