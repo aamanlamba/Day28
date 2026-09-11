@@ -64,13 +64,22 @@ def transaction_monitoring(case_id: str, policy_version: str | None = None):
 
 @app.post('/v2/compliance/cases/{case_id}/evaluate', response_model=ComplianceCaseResult)
 def compliance_case(case_id: str, policy_version: str | None = None):
-    return evaluate_compliance_case(case_id, policy_version)
+    result=evaluate_compliance_case(case_id, policy_version)
+    # CH-15: decision-level observability - entity id, outcome and reason, not just the
+    # generic request line the correlation middleware already logs.
+    log.info('compliance_evaluated case_id=%s disposition=%s policy_version=%s reason_codes=%s',
+              case_id, result.disposition, result.policy_version, ','.join(result.reason_codes))
+    return result
 
 @app.post('/v2/compliance/cases/{case_id}/review', response_model=ReviewDecision)
 def review_case(case_id: str, req: ReviewDecisionRequest):
     # CH-13: governed, auditable HITL override channel - never mutates the deterministic
     # evaluation above; see src/review.py.
-    return submit_review_decision(case_id, req.reviewer_id, req.reviewer_role, req.new_disposition, req.rationale)
+    decision=submit_review_decision(case_id, req.reviewer_id, req.reviewer_role, req.new_disposition, req.rationale)
+    log.info('review_decision case_id=%s decision_id=%s reviewer_id=%s reviewer_role=%s prior=%s new=%s',
+              case_id, decision.decision_id, decision.reviewer_id, decision.reviewer_role,
+              decision.prior_disposition, decision.new_disposition)
+    return decision
 
 @app.get('/v2/compliance/cases/{case_id}/reviews', response_model=list[ReviewDecision])
 def review_history(case_id: str):
