@@ -10,6 +10,38 @@ def test_identity_profile_surfaces_cross_document_name_conflict():
     assert 'CROSS_DOCUMENT_NAME_MISMATCH' in p.risk_flags
 
 
+def _case_with_dobs(dob_a: str, dob_b: str) -> CaseResult:
+    return CaseResult(
+        case_id='CASE-TEST-DOB', decision='APPROVE', reason_codes=['BASELINE_RULES_PASSED'],
+        documents=[
+            DocumentResult(document_id='CASE-TEST-DOB-D1', decision='APPROVE',
+                            reason_codes=['BASELINE_RULES_PASSED'],
+                            parsed_fields={'full_name': 'Test Person', 'date_of_birth': dob_a},
+                            completeness=1.0, warnings=[]),
+            DocumentResult(document_id='CASE-TEST-DOB-D2', decision='APPROVE',
+                            reason_codes=['BASELINE_RULES_PASSED'],
+                            parsed_fields={'full_name': 'Test Person', 'date_of_birth': dob_b},
+                            completeness=1.0, warnings=[]),
+        ],
+        limitation_notice='n/a',
+    )
+
+
+def test_dob_comparison_tolerates_equivalent_formats(monkeypatch):
+    # CH-03: the same date of birth expressed in two valid formats must not be treated
+    # as a cross-document conflict.
+    monkeypatch.setattr('src.identity.verify_case', lambda cid: _case_with_dobs('1992-12-08', '08/12/1992'))
+    p = build_identity_profile('CASE-TEST-DOB')
+    assert 'CROSS_DOCUMENT_DOB_MISMATCH' not in p.risk_flags
+
+
+def test_dob_comparison_still_flags_a_genuine_mismatch_across_formats(monkeypatch):
+    # Format tolerance must not mask an actual conflicting date of birth.
+    monkeypatch.setattr('src.identity.verify_case', lambda cid: _case_with_dobs('1992-12-08', '09/12/1992'))
+    p = build_identity_profile('CASE-TEST-DOB')
+    assert 'CROSS_DOCUMENT_DOB_MISMATCH' in p.risk_flags
+
+
 def test_clean_identity_and_normal_activity_stays_clear():
     r = evaluate_compliance_case('CASE-001')
     assert r.identity.identity_status == 'VERIFIED'

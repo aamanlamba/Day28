@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from difflib import SequenceMatcher
 from .service import verify_case
 from .repository import load_json
@@ -6,12 +7,25 @@ from .models_v2 import IdentityProfile
 
 QUALITY_WARNING_CODES = {'DEGRADED_OCR_QUALITY', 'OCR_QUALITY_DEGRADED', 'ROTATED_CAPTURE', 'ROTATED_DOCUMENT'}
 QUALITY_DEGRADED_CONFIDENCE_MULTIPLIER = 0.9  # CH-02: documented heuristic, not a calibrated probability
+DOB_FORMATS = ('%Y-%m-%d', '%d/%m/%Y')
 
 def _norm_name(v: str) -> str:
     return re.sub(r"[^a-z0-9]", "", (v or "").lower())
 
 def _name_similarity(a: str, b: str) -> float:
     return SequenceMatcher(None, _norm_name(a), _norm_name(b)).ratio()
+
+def _normalize_dob(v: str):
+    """CH-03: compare dates of birth by value, not by literal string, so a document
+    expressing the same date in a different valid format isn't flagged as a conflict.
+    An unparseable value falls back to the raw string so it still compares (and can
+    still mismatch) rather than being silently ignored."""
+    for fmt in DOB_FORMATS:
+        try:
+            return datetime.strptime(v, fmt).date()
+        except ValueError:
+            continue
+    return v
 
 def build_identity_profile(case_id: str) -> IdentityProfile:
     base = verify_case(case_id)
@@ -33,7 +47,7 @@ def build_identity_profile(case_id: str) -> IdentityProfile:
         if min_sim < 0.92:
             status='REVIEW' if status == 'VERIFIED' else status
             flags.append('CROSS_DOCUMENT_NAME_MISMATCH')
-    if len(set(dobs)) > 1:
+    if len({_normalize_dob(d) for d in dobs}) > 1:
         status='REVIEW' if status == 'VERIFIED' else status
         flags.append('CROSS_DOCUMENT_DOB_MISMATCH')
     if ctx.get('kyc_refresh_due'):
