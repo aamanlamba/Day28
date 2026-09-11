@@ -15,11 +15,18 @@ def _alert(case_id, code, severity, score, reasons, txs, evidence):
     return MonitoringAlert(alert_id=f'{case_id}-{code}-{len(txs)}', case_id=case_id, pattern_code=code, severity=severity, score=score, reasons=reasons, transaction_ids=[t.transaction_id for t in txs], evidence_refs=evidence, policy_version=POLICY_VERSION)
 
 def _dedupe(events):
-    out=[]; seen=set(); warnings=[]
+    """CH-06: a repeated transaction_id with different content is a data-integrity
+    signal, not routine redelivery - distinguish it from an exact duplicate rather than
+    silently applying the same warning to both."""
+    out=[]; seen={}; warnings=[]
     for e in events:
         if e.transaction_id in seen:
-            warnings.append('DUPLICATE_EVENT_SUPPRESSED'); continue
-        seen.add(e.transaction_id); out.append(e)
+            if e != seen[e.transaction_id]:
+                warnings.append('CONFLICTING_DUPLICATE_TRANSACTION')
+            else:
+                warnings.append('DUPLICATE_EVENT_SUPPRESSED')
+            continue
+        seen[e.transaction_id]=e; out.append(e)
     return out, sorted(set(warnings))
 
 def _filter_case_mismatch(events, case_id):

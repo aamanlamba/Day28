@@ -107,6 +107,41 @@ def test_duplicate_transaction_hook_is_idempotently_suppressed():
     assert m.processed_transaction_count < m.received_transaction_count
 
 
+def test_conflicting_duplicate_transaction_id_is_distinguished_from_true_duplicate(monkeypatch):
+    # CH-06: a repeated transaction_id with DIFFERENT content is a data-integrity signal,
+    # not routine redelivery noise - it must not be silently indistinguishable from an
+    # exact duplicate.
+    conflicting_batch = {
+        'case_id': 'CASE-009',
+        'transactions': [
+            {
+                'transaction_id': 'T901', 'case_id': 'CASE-009',
+                'timestamp': '2026-09-01T09:00:00+00:00', 'direction': 'CREDIT',
+                'amount': 2000, 'currency': 'USD', 'counterparty_id': 'CP-001',
+                'counterparty_country': 'IN', 'channel': 'TRANSFER', 'device_id': 'DEV-1',
+            },
+            {
+                'transaction_id': 'T901', 'case_id': 'CASE-009',
+                'timestamp': '2026-09-01T09:00:00+00:00', 'direction': 'CREDIT',
+                'amount': 9999, 'currency': 'USD', 'counterparty_id': 'CP-001',
+                'counterparty_country': 'IN', 'channel': 'TRANSFER', 'device_id': 'DEV-1',
+            },
+        ],
+    }
+    monkeypatch.setattr('src.monitoring.load_json', lambda folder, ident: conflicting_batch)
+    m = evaluate_transactions('CASE-009')
+    assert 'CONFLICTING_DUPLICATE_TRANSACTION' in m.hook_warnings
+    assert 'DUPLICATE_EVENT_SUPPRESSED' not in m.hook_warnings
+    assert m.processed_transaction_count == 1
+
+
+def test_evaluate_transactions_is_replayable():
+    # CH-06 / CLAUDE.md §7: historical decisions must remain reproducible.
+    first = evaluate_transactions('CASE-007')
+    second = evaluate_transactions('CASE-007')
+    assert first.model_dump() == second.model_dump()
+
+
 def test_velocity_pattern_detected_over_sliding_window():
     m = evaluate_transactions('CASE-010')
     codes = {a.pattern_code for a in m.alerts}
