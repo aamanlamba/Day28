@@ -65,6 +65,15 @@ def test_structuring_pattern_creates_alert():
     assert m.overall_risk in ('HIGH','CRITICAL')
 
 
+def test_structuring_reason_cites_actual_observed_count():
+    # CH-12: an investigator must be able to read why this specific alert fired without
+    # cross-referencing source code - the reason must cite the actual count observed
+    # (CASE-007 has exactly 3 qualifying credits), not just a static rule description.
+    m = evaluate_transactions('CASE-007')
+    alert = next(a for a in m.alerts if a.pattern_code == 'TM_STRUCTURING')
+    assert any('3 credits' in r for r in alert.reasons)
+
+
 def _structuring_batch(amounts_and_offsets_hours):
     def tx(i, amount, offset_hours):
         base = datetime(2026, 9, 1, 0, 0, 0, tzinfo=timezone.utc) + timedelta(hours=offset_hours)
@@ -164,6 +173,21 @@ def test_high_risk_corridor_is_strengthened_by_identity_context():
     codes = {a.pattern_code for a in r.monitoring.alerts}
     assert 'TM_HIGH_RISK_CORRIDOR' in codes
     assert any('IDENTITY_CONTEXT' in reason for a in r.monitoring.alerts for reason in a.reasons)
+
+
+def test_corridor_base_reason_cites_actual_countries_matched():
+    # CH-12: CASE-008's two corridor transactions are to XQ and ZR specifically - the
+    # base reason must name them, not just say "the corridor set" generically.
+    m = evaluate_transactions('CASE-008')
+    alert = next(a for a in m.alerts if a.pattern_code == 'TM_HIGH_RISK_CORRIDOR')
+    assert any('XQ' in r and 'ZR' in r for r in alert.reasons)
+
+
+def test_compliance_reason_codes_cite_triggering_pattern():
+    # CH-12: the disposition-level reason must name which specific pattern(s) drove an
+    # escalation, not just "transaction monitoring is high risk" with no pointer to why.
+    r = evaluate_compliance_case('CASE-008')
+    assert any('TM_HIGH_RISK_CORRIDOR' in code for code in r.reason_codes)
 
 
 def _corridor_batch():
@@ -307,6 +331,13 @@ def test_velocity_pattern_detected_over_sliding_window():
     assert 'TM_RAPID_VELOCITY' in codes
 
 
+def test_velocity_reason_cites_actual_observed_count():
+    # CH-12: CASE-010 has exactly 6 transactions within the 60-minute window.
+    m = evaluate_transactions('CASE-010')
+    alert = next(a for a in m.alerts if a.pattern_code == 'TM_RAPID_VELOCITY')
+    assert any('6 transactions' in r for r in alert.reasons)
+
+
 def _velocity_batch(offsets_minutes, counterparty_ids=None):
     base = datetime(2026, 9, 1, 10, 0, 0, tzinfo=timezone.utc)
     cids = counterparty_ids or [f'CP-{i}' for i in range(len(offsets_minutes))]
@@ -365,6 +396,13 @@ def test_pass_through_pattern_detected():
     m = evaluate_transactions('CASE-012')
     codes = {a.pattern_code for a in m.alerts}
     assert 'TM_PASS_THROUGH' in codes
+
+
+def test_pass_through_reason_cites_actual_pair_count():
+    # CH-12: CASE-012 has exactly 2 matched credit/debit pairs.
+    m = evaluate_transactions('CASE-012')
+    alert = next(a for a in m.alerts if a.pattern_code == 'TM_PASS_THROUGH')
+    assert any('2 credit/debit pair' in r for r in alert.reasons)
 
 
 def _pass_through_pairs(pairs):

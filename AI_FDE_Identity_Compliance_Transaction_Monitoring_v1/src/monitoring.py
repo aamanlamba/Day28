@@ -72,21 +72,27 @@ def evaluate_transactions(case_id: str) -> MonitoringResult:
     for anchor in near:
         window=[t for t in near if abs(_dt(t.timestamp)-_dt(anchor.timestamp)) <= STRUCTURING_WINDOW]
         if len(window) >= STRUCTURING_MIN_COUNT:
-            alerts.append(_alert(case_id,'TM_STRUCTURING','HIGH',0.90,['3+ credits between 8,000 and 9,999 within 24h','RULE_THRESHOLD_AVOIDANCE'],window,evidence_base)); break
+            # CH-12: cite the actual observed count, not just the rule's static threshold.
+            reason=f'{len(window)} credits between {STRUCTURING_MIN_AMOUNT} and {STRUCTURING_MAX_AMOUNT-1} observed within {STRUCTURING_WINDOW} (rule threshold: {STRUCTURING_MIN_COUNT}+)'
+            alerts.append(_alert(case_id,'TM_STRUCTURING','HIGH',0.90,[reason,'RULE_THRESHOLD_AVOIDANCE'],window,evidence_base)); break
 
     # Pattern 2: rapid velocity: 5+ events in 60 minutes
     ordered=sorted(txs,key=lambda t:_dt(t.timestamp))
     for i,t in enumerate(ordered):
         window=[x for x in ordered[i:] if _dt(x.timestamp)-_dt(t.timestamp) <= VELOCITY_WINDOW]
         if len(window)>=VELOCITY_MIN_COUNT:
-            alerts.append(_alert(case_id,'TM_RAPID_VELOCITY','HIGH',0.86,['5+ transactions observed within a 60-minute sliding window'],window,evidence_base)); break
+            # CH-12: cite the actual observed count, not just the rule's static threshold.
+            reason=f'{len(window)} transactions observed within {VELOCITY_WINDOW} (rule threshold: {VELOCITY_MIN_COUNT}+)'
+            alerts.append(_alert(case_id,'TM_RAPID_VELOCITY','HIGH',0.86,[reason],window,evidence_base)); break
 
     # Pattern 3: high-risk corridor; identity risk context strengthens severity/explanation.
     # CH-10: each condition is checked and cited independently so an alert names exactly
     # which identity field(s) drove the escalation, not a single generic sentence.
     corridor=[t for t in txs if t.counterparty_country in HIGH_RISK_COUNTRIES]
     if corridor:
-        reasons=['counterparty country is in synthetic high-risk corridor set']
+        # CH-12: cite the actual matched countries, not just "the corridor set" generically.
+        countries=sorted({t.counterparty_country for t in corridor})
+        reasons=[f'{len(corridor)} transaction(s) to counterparty_country in {countries} (synthetic high-risk corridor set)']
         context_reasons=[]
         if profile.identity_status != 'VERIFIED':
             context_reasons.append(f'IDENTITY_CONTEXT: identity_status={profile.identity_status} (not VERIFIED)')
@@ -120,7 +126,9 @@ def evaluate_transactions(case_id: str) -> MonitoringResult:
     uniq={t.transaction_id:t for t in pairs}
     if len(uniq)>=PASS_THROUGH_MIN_MATCHED_COUNT:
         p=list(uniq.values())
-        alerts.append(_alert(case_id,'TM_PASS_THROUGH','HIGH',0.89,['multiple large credits rapidly followed by near-equal debits','FUNNEL_OR_PASS_THROUGH_BEHAVIOR'],p,evidence_base))
+        # CH-12: cite the actual matched pair count, not just a static description.
+        reason=f'{len(uniq)//2} credit/debit pair(s) matched within {PASS_THROUGH_WINDOW} at <={PASS_THROUGH_AMOUNT_TOLERANCE:.0%} amount tolerance'
+        alerts.append(_alert(case_id,'TM_PASS_THROUGH','HIGH',0.89,[reason,'FUNNEL_OR_PASS_THROUGH_BEHAVIOR'],p,evidence_base))
 
     rank={'LOW':0,'MEDIUM':1,'HIGH':2,'CRITICAL':3}
     overall='LOW' if not alerts else max((a.severity for a in alerts), key=lambda s:rank[s])
