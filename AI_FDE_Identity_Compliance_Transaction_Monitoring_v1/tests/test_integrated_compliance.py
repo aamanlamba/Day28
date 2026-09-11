@@ -10,6 +10,14 @@ def test_identity_profile_surfaces_cross_document_name_conflict():
     assert 'CROSS_DOCUMENT_NAME_MISMATCH' in p.risk_flags
 
 
+def test_missing_expected_activity_baseline_is_flagged_not_silent():
+    # CH-05: a case with no customer_context (no expected_monthly_turnover) must say so
+    # explicitly, not leave the monitoring-side deviation check silently disabled.
+    p = build_identity_profile('CASE-002')
+    assert p.expected_monthly_turnover is None
+    assert 'EXPECTED_ACTIVITY_BASELINE_MISSING' in p.risk_flags
+
+
 def _case_with_dobs(dob_a: str, dob_b: str) -> CaseResult:
     return CaseResult(
         case_id='CASE-TEST-DOB', decision='APPROVE', reason_codes=['BASELINE_RULES_PASSED'],

@@ -53,6 +53,11 @@ def build_identity_profile(case_id: str) -> IdentityProfile:
     if ctx.get('kyc_refresh_due'):
         flags.append('KYC_REFRESH_DUE')
         if status == 'VERIFIED': status='REVIEW'
+    expected_turnover = ctx.get('expected_monthly_turnover')
+    if expected_turnover is None:
+        # CH-05: a missing expected-activity baseline silently disables the
+        # monitoring-side deviation check; make the gap visible instead.
+        flags.append('EXPECTED_ACTIVITY_BASELINE_MISSING')
     # CH-02: evidence quality (not just decision outcome) must reduce confidence, so
     # downstream monitoring can distinguish trusted from disputed KYC facts.
     quality_flags = {w for d in base.documents for w in d.warnings if w in QUALITY_WARNING_CODES}
@@ -66,7 +71,7 @@ def build_identity_profile(case_id: str) -> IdentityProfile:
     return IdentityProfile(
         case_id=case_id, canonical_name=canonical, date_of_birth=(dobs[0] if dobs else None),
         residency_country=ctx.get('residency_country'), nationality=ctx.get('nationality') or (nationalities[0] if nationalities else None),
-        occupation=ctx.get('occupation'), expected_monthly_turnover=ctx.get('expected_monthly_turnover'),
+        occupation=ctx.get('occupation'), expected_monthly_turnover=expected_turnover,
         identity_status=status, confidence=confidence, risk_flags=sorted(set(flags)),
         evidence_refs=[f'document:{d.document_id}' for d in base.documents],
     )

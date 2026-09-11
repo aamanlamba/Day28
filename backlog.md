@@ -27,6 +27,8 @@ side effect of a later numbered prompt before they need separate work.
 | BL-004 | Change Request | Prompt 03 | Reason-code naming conflict: `IDENTITY_RESOLUTION.md` vs. `AC-ID-001` | Open |
 | BL-005 | Change Request | Prompt 03 | No handling for initials/abbreviated-name variants | Open |
 | BL-006 | Change Request | Prompt 03 | Retain per-field match/mismatch evidence on `IdentityProfile` | Open |
+| BL-007 | Change Request | Prompt 05 | `occupation` is captured but consumed by no rule | Open |
+| BL-008 | Change Request | Prompt 05 | Expected-counterparty-country baseline field | Open |
 
 ## BL-001 — Document-id-to-case-id linkage is unvalidated
 
@@ -152,3 +154,37 @@ side effect of a later numbered prompt before they need separate work.
 - **Suggested next step:** If wanted, needs an approved additive schema field (e.g. a small
   `field_conflicts` list) via a change request — happy to draft one if you want to pursue
   this.
+
+## BL-007 — `occupation` is captured but consumed by no rule
+
+- **Type:** Change Request
+- **Source:** Prompt 05 forensics
+- **Status:** Open
+- **Description:** `IdentityProfile.occupation` is populated verbatim from
+  `data/customer_context/*.json` but `grep` across `src/monitoring.py` and
+  `src/compliance.py` shows it is never read by any pattern or disposition rule. It exists
+  on the schema and in every API response but currently has no effect on any outcome.
+- **Why deferred:** Making occupation meaningful would require a policy decision (e.g. an
+  occupation-to-risk-category taxonomy, or an occupation-vs-turnover plausibility check) —
+  a business rule with no spec support today, not something to invent unilaterally.
+- **Suggested next step:** If there's appetite to make `occupation` load-bearing, needs an
+  explicit taxonomy/policy decision recorded via `specs/09_change_requests/` before any
+  monitoring logic consumes it.
+
+## BL-008 — Expected-counterparty-country baseline field
+
+- **Type:** Change Request
+- **Source:** Prompt 05 forensics
+- **Status:** Open
+- **Description:** `prompts/05-expected-activity-profile-normalization.md`'s suggested
+  change boundary names "an expected-counterparty-country set" as an example of a
+  genuinely new, deterministic normalization (derivable from `residency_country`). It would
+  be a new field on `IdentityProfile` with no current spec backing, consumed by nothing
+  until a monitoring pattern exists to compare against it.
+- **Why deferred:** Prompt 05 was scoped to identity-side normalization only; the
+  monitoring-side comparison explicitly belongs to Prompts 09 (velocity) and 10 (corridor
+  fusion). Building the field speculatively now, before its consumer's exact needs are
+  known, risks guessing at a shape that doesn't fit — better designed together.
+- **Suggested next step:** Revisit when Prompt 09 or 10 is run; decide there whether a new
+  `IdentityProfile` field is actually needed or whether `residency_country` (already present)
+  is sufficient for the corridor/velocity fusion logic.
