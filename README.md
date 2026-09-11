@@ -9,7 +9,7 @@ up with a hardened `v2` of that service — not a rewrite.
 
 | Path | Role |
 |---|---|
-| `AI_FDE_Identity_Compliance_Transaction_Monitoring_v1/` | The brownfield service under transformation. **Untouched so far.** |
+| `AI_FDE_Identity_Compliance_Transaction_Monitoring_v1/` | The brownfield service under transformation. Now at `v2.0.0-integrated` — all 15 challenges addressed. |
 | `CLAUDE.md` | Project-wide engineering posture and execution contract that governs every change made in this repo (see below). |
 | `Engineering_challenges_in_repo_1.0.pdf` | Source definition of the 15 engineering challenges. |
 | `Engineering_challenge_workflow.pdf` | One-page pipeline diagram the challenges are embedded across. |
@@ -78,8 +78,21 @@ evidence-case mapping per challenge, is in `prompts/README.md`.
 
 ## Status
 
-- Prompt 00 (repository forensic pass) has been run. Results: `results/00-repository-forensic-pass.md`.
-  No code change — it was a read-only pass. Baseline is green (preflight, sanity check,
-  32 pytest tests, smoke server all pass).
-- Prompts 01–16 have not been run yet. Nothing in
-  `AI_FDE_Identity_Compliance_Transaction_Monitoring_v1/` has been modified.
+**All 17 prompts (00–16) complete.** The service is now `v2.0.0-integrated`; all 15
+engineering challenges have a working, tested, traced implementation — see
+`AI_FDE_Identity_Compliance_Transaction_Monitoring_v1/docs/qa_release_report_integrated.md`
+for the full release-evidence pack and
+`AI_FDE_Identity_Compliance_Transaction_Monitoring_v1/specs/08_traceability/TRACEABILITY_MATRIX.md`
+for per-challenge traceability. Individual run reports: `results/00-*.md` through
+`results/16-*.md`.
+
+- Full regression: 82 tests passing; preflight, sanity check, golden+adversarial+
+  metamorphic+outage evals, and smoke server all green, re-verified at release time.
+- `/v1` compatibility fully preserved throughout and re-verified live at release
+  (`tests/test_release_integrity.py`, plus a live check in Prompt 16).
+- Two open change requests (`CR-001`, `CR-002`) and ten backlog items (`backlog.md`) remain
+  — all non-blocking, all documented with rationale rather than silently skipped.
+  `CR-002` (HITL reviewer role is self-declared, not authenticated) is the one item that
+  should be resolved before any non-training use of the review endpoint.
+
+Next: backlog items, at the user's discretion — none are release-blocking.
