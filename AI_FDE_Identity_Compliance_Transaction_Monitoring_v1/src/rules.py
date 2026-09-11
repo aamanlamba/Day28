@@ -26,6 +26,8 @@ def evaluate(fields: dict, raw_text: str) -> tuple[str,list[str],list[str]]:
             if date.fromisoformat(expiry) < REFERENCE_DATE: reasons.append('DOCUMENT_EXPIRED')
         except ValueError: reasons.append('INVALID_EXPIRY_DATE')
     if 'ALTERED_TEXT_REGION_DETECTED' in raw_text: reasons.append('SUSPECTED_TAMPERING')
+    # BL-003: OCR_QUALITY_DEGRADED/ROTATED_DOCUMENT are intentional synonyms of
+    # parser.py's DEGRADED_OCR_QUALITY/ROTATED_CAPTURE - see the note there.
     if 'DEGRADED' in raw_text: warnings.append('OCR_QUALITY_DEGRADED')
     if '90_DEGREES' in raw_text: warnings.append('ROTATED_DOCUMENT')
     if any(r in reasons for r in ('SUSPECTED_TAMPERING','DOCUMENT_EXPIRED')): return 'REJECT',reasons,warnings

@@ -21,9 +21,9 @@ side effect of a later numbered prompt before they need separate work.
 
 | ID | Type | Source | Title | Status |
 | --- | --- | --- | --- | --- |
-| BL-001 | Change Request | Prompt 01 | Document-id-to-case-id linkage is unvalidated | Open |
-| BL-002 | Improvement | Prompt 02 | `UNREADABLE_GLYPHS` count is silently discarded by the parser | Open |
-| BL-003 | Improvement | Prompt 02 | Duplicate/inconsistent OCR-quality warning codes | Open |
+| BL-001 | Change Request | Prompt 01 | Document-id-to-case-id linkage is unvalidated | Resolved |
+| BL-002 | Improvement | Prompt 02 | `UNREADABLE_GLYPHS` count is silently discarded by the parser | Resolved |
+| BL-003 | Improvement | Prompt 02 | Duplicate/inconsistent OCR-quality warning codes | Resolved (by decision) |
 | BL-004 | Change Request | Prompt 03 | Reason-code naming conflict: `IDENTITY_RESOLUTION.md` vs. `AC-ID-001` | Open |
 | BL-005 | Change Request | Prompt 03 | No handling for initials/abbreviated-name variants | Open |
 | BL-006 | Change Request | Prompt 03 | Retain per-field match/mismatch evidence on `IdentityProfile` | Open |
@@ -37,7 +37,7 @@ side effect of a later numbered prompt before they need separate work.
 - **Type:** Change Request
 - **Source:** Prompt 01 (`results/01-identity-to-transaction-entity-linkage.md`, Remaining
   Risks); **corrected during Prompt 03 forensics** (see update below).
-- **Status:** Open
+- **Status:** Resolved
 - **Description:** A document's association with a case (e.g. `CASE-005-PASSPORT` belonging
   to `CASE-005`) is enforced only by a string-prefix naming convention, never asserted in
   code.
@@ -58,12 +58,26 @@ side effect of a later numbered prompt before they need separate work.
   that cross-checks `load_ground_truth(document_id)['case_id'] == case_id` when assembling a
   `CaseResult` — likely doesn't need a formal change request anymore given the field already
   exists; a good candidate to fold into Prompt 16's hardening pass, or its own small prompt.
+- **Resolution:** Implemented in `src/identity.py:build_identity_profile` instead of `/v1`'s
+  `service.py` — the check lives on the `/v2` identity-resolution path (where this is really
+  an identity-resolution risk), leaving `/v1`'s locked `CaseResult` schema untouched. A
+  document whose ground-truth `case_id` disagrees with the profile's `case_id` now adds a
+  `DOCUMENT_CASE_LINKAGE_MISMATCH` risk flag and bumps `identity_status` toward `REVIEW`
+  (same pattern as `CROSS_DOCUMENT_NAME_MISMATCH`). A document with no ground-truth record
+  at all (e.g. a synthetic test double) is treated as unverifiable, not a confirmed
+  mismatch — not flagged, not a hard failure. Verified zero mismatches exist across all 12
+  real fixtures today (checked programmatically), so this is a zero-regression-risk
+  addition; proven via two new tests
+  (`test_identity_profile_flags_document_case_linkage_mismatch`,
+  `test_identity_profile_linkage_check_tolerates_missing_ground_truth`) in
+  `tests/test_integrated_compliance.py`. Full regression: 84 passed (was 82 before this
+  backlog session), preflight/sanity/evals/smoke all green.
 
 ## BL-002 — `UNREADABLE_GLYPHS` count is silently discarded by the parser
 
 - **Type:** Improvement
 - **Source:** Prompt 02 forensics
-- **Status:** Open
+- **Status:** Resolved
 - **Description:** `data/sidecar_ocr/CASE-002-*.txt` carries a line `UNREADABLE_GLYPHS: 4` —
   a real, quantifiable OCR-quality signal. `src/parser.py`'s `parse_legacy_ocr` explicitly
   excludes `UNREADABLE_GLYPHS:` lines from both field extraction and the
@@ -77,12 +91,25 @@ side effect of a later numbered prompt before they need separate work.
   distinct design step.
 - **Suggested next step:** Pick up alongside a future confidence-model refinement, or fold
   into Prompt 15 (evals/observability) as an evidence-fidelity gap to test for.
+- **Resolution:** Recovered the signal only — deliberately did **not** decide the
+  confidence-scaling policy. Discovered mid-fix that folding this into
+  `parse_legacy_ocr` (the shared `/v1` function) would have broken `KYC-COMP-002`
+  (CASE-002 is one of the six legacy regression-snapshot cases and is exactly the
+  fixture carrying this line). Added a separate `extract_unreadable_glyph_count`
+  function in `src/parser.py` that `/v1`'s `parse_legacy_ocr` never calls, consumed only
+  by `src/identity.py`, which now adds an informational `OCR_GLYPH_QUALITY_DEGRADED`
+  risk flag (presence-only, no confidence multiplier — that scaling question remains
+  open for whoever picks it up next). `/v1`'s `CASE-002` snapshot verified byte-identical
+  (`tests/test_release_integrity.py` still passes). Two new tests
+  (`test_identity_profile_flags_unreadable_glyphs`,
+  `test_identity_profile_does_not_flag_glyphs_when_absent`). Full regression: 86 passed
+  (was 84), preflight/sanity/evals/smoke all green.
 
 ## BL-003 — Duplicate/inconsistent OCR-quality warning codes
 
 - **Type:** Improvement
 - **Source:** Prompt 02 forensics
-- **Status:** Open
+- **Status:** Resolved (by decision)
 - **Description:** The same degraded-quality condition currently produces two
   differently-named warnings on the same `DocumentResult`: `DEGRADED_OCR_QUALITY` (from
   `src/parser.py:17`) and `OCR_QUALITY_DEGRADED` (from `src/rules.py:29`). Likewise
@@ -97,6 +124,17 @@ side effect of a later numbered prompt before they need separate work.
   this.
 - **Suggested next step:** A small standalone cleanup prompt/PR once no in-flight prompt
   still depends on the current dual-naming.
+- **Resolution:** Investigated during backlog work and found the conflict is worse than
+  described — both duplicate pairs are baked into the **locked `/v1` golden snapshots**
+  (`data/expected_baseline_outputs/CASE-002.json`: `['DEGRADED_OCR_QUALITY',
+  'OCR_QUALITY_DEGRADED']`; `CASE-003.json`: `['ROTATED_CAPTURE', 'ROTATED_DOCUMENT']`),
+  so removing either code breaks `KYC-COMP-002`. Presented three options to the user
+  (leave as-is + document; get approval to update the two snapshots; leave fully open);
+  chose **leave as-is and document** — no functional harm exists since `/v2`'s
+  `QUALITY_WARNING_CODES` already checks both names. Added a comment at each of the four
+  call sites (`src/parser.py`, `src/rules.py`) recording that these are intentional,
+  compatibility-locked synonyms, not an oversight. No behavior change; full regression
+  (86 tests) confirmed unchanged before and after.
 
 ## BL-004 — Reason-code naming conflict: `IDENTITY_RESOLUTION.md` vs. `AC-ID-001`
 

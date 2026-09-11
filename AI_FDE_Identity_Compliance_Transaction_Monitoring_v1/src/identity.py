@@ -2,7 +2,9 @@ import re
 from datetime import datetime
 from difflib import SequenceMatcher
 from .service import verify_case
-from .repository import load_json
+from .repository import load_json, load_ground_truth
+from .ocr import extract_text
+from .parser import extract_unreadable_glyph_count
 from .models_v2 import IdentityProfile
 
 QUALITY_WARNING_CODES = {'DEGRADED_OCR_QUALITY', 'OCR_QUALITY_DEGRADED', 'ROTATED_CAPTURE', 'ROTATED_DOCUMENT'}
@@ -50,6 +52,18 @@ def build_identity_profile(case_id: str) -> IdentityProfile:
     if len({_normalize_dob(d) for d in dobs}) > 1:
         status='REVIEW' if status == 'VERIFIED' else status
         flags.append('CROSS_DOCUMENT_DOB_MISMATCH')
+    # BL-001: a document evidencing a different case must not be silently aggregated
+    # into this identity - a false-join risk, not merely a quality/consistency issue.
+    # A document with no ground-truth record at all is unverifiable, not a confirmed
+    # mismatch, so it's skipped rather than flagged or treated as a hard failure.
+    def _linked_to_wrong_case(document_id: str) -> bool:
+        try:
+            return load_ground_truth(document_id).get('case_id') != case_id
+        except FileNotFoundError:
+            return False
+    if any(_linked_to_wrong_case(d.document_id) for d in base.documents):
+        status='REVIEW' if status == 'VERIFIED' else status
+        flags.append('DOCUMENT_CASE_LINKAGE_MISMATCH')
     if ctx.get('kyc_refresh_due'):
         flags.append('KYC_REFRESH_DUE')
         if status == 'VERIFIED': status='REVIEW'
@@ -67,6 +81,17 @@ def build_identity_profile(case_id: str) -> IdentityProfile:
         flags.append('DOCUMENT_QUALITY_DEGRADED')
         confidence *= QUALITY_DEGRADED_CONFIDENCE_MULTIPLIER
     confidence = round(confidence * worst_completeness, 3)
+    # BL-002: recovers the UNREADABLE_GLYPHS count that parse_legacy_ocr silently
+    # discards, without touching /v1's locked DocumentResult.warnings (KYC-COMP-002).
+    # Informational only, like DOCUMENT_QUALITY_DEGRADED - no separate confidence
+    # penalty, since how a glyph count should scale one is an undecided policy question.
+    def _has_unreadable_glyphs(document_id: str) -> bool:
+        try:
+            return bool(extract_unreadable_glyph_count(extract_text(document_id)))
+        except FileNotFoundError:
+            return False
+    if any(_has_unreadable_glyphs(d.document_id) for d in base.documents):
+        flags.append('OCR_GLYPH_QUALITY_DEGRADED')
     canonical = ctx.get('canonical_name') or (names[0] if names else None)
     return IdentityProfile(
         case_id=case_id, canonical_name=canonical, date_of_birth=(dobs[0] if dobs else None),

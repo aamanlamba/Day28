@@ -11,12 +11,61 @@ def test_identity_profile_surfaces_cross_document_name_conflict():
     assert 'CROSS_DOCUMENT_NAME_MISMATCH' in p.risk_flags
 
 
+def test_identity_profile_flags_document_case_linkage_mismatch(monkeypatch):
+    # BL-001: a document whose ground-truth case_id disagrees with the case it's
+    # referenced under (a misfiled/misconfigured document) must not be silently
+    # aggregated into a clean identity profile.
+    from src.repository import load_ground_truth as real_load_ground_truth
+    def fake_load_ground_truth(document_id):
+        real = real_load_ground_truth(document_id)
+        if document_id == 'CASE-001-DL':
+            return {**real, 'case_id': 'CASE-999-WRONG'}
+        return real
+    monkeypatch.setattr('src.identity.load_ground_truth', fake_load_ground_truth)
+    p = build_identity_profile('CASE-001')
+    assert p.identity_status == 'REVIEW'
+    assert 'DOCUMENT_CASE_LINKAGE_MISMATCH' in p.risk_flags
+
+
+def test_identity_profile_linkage_check_tolerates_missing_ground_truth(monkeypatch):
+    # A document with no ground-truth record at all (e.g. a synthetic test double) is
+    # unverifiable, not a confirmed mismatch - must not crash or be flagged.
+    case = CaseResult(
+        case_id='CASE-TEST-NOGT', decision='APPROVE', reason_codes=['BASELINE_RULES_PASSED'],
+        documents=[
+            DocumentResult(document_id='CASE-TEST-NOGT-D1', decision='APPROVE',
+                            reason_codes=['BASELINE_RULES_PASSED'],
+                            parsed_fields={'full_name': 'Test Person', 'date_of_birth': '1990-01-01'},
+                            completeness=1.0, warnings=[]),
+        ],
+        limitation_notice='n/a',
+    )
+    monkeypatch.setattr('src.identity.verify_case', lambda cid: case)
+    p = build_identity_profile('CASE-TEST-NOGT')
+    assert p.identity_status == 'VERIFIED'
+    assert 'DOCUMENT_CASE_LINKAGE_MISMATCH' not in p.risk_flags
+
+
 def test_missing_expected_activity_baseline_is_flagged_not_silent():
     # CH-05: a case with no customer_context (no expected_monthly_turnover) must say so
     # explicitly, not leave the monitoring-side deviation check silently disabled.
     p = build_identity_profile('CASE-002')
     assert p.expected_monthly_turnover is None
     assert 'EXPECTED_ACTIVITY_BASELINE_MISSING' in p.risk_flags
+
+
+def test_identity_profile_flags_unreadable_glyphs():
+    # BL-002: CASE-002's sidecar OCR carries "UNREADABLE_GLYPHS: 4", a real quality
+    # signal that src/parser.py's parse_legacy_ocr silently discards. It must be
+    # recovered on the /v2 identity path without altering /v1's locked DocumentResult
+    # warnings (KYC-COMP-002 protects CASE-002's regression snapshot).
+    p = build_identity_profile('CASE-002')
+    assert 'OCR_GLYPH_QUALITY_DEGRADED' in p.risk_flags
+
+
+def test_identity_profile_does_not_flag_glyphs_when_absent():
+    p = build_identity_profile('CASE-001')
+    assert 'OCR_GLYPH_QUALITY_DEGRADED' not in p.risk_flags
 
 
 def _case_with_dobs(dob_a: str, dob_b: str) -> CaseResult:
