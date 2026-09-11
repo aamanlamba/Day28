@@ -24,11 +24,11 @@ side effect of a later numbered prompt before they need separate work.
 | BL-001 | Change Request | Prompt 01 | Document-id-to-case-id linkage is unvalidated | Resolved |
 | BL-002 | Improvement | Prompt 02 | `UNREADABLE_GLYPHS` count is silently discarded by the parser | Resolved |
 | BL-003 | Improvement | Prompt 02 | Duplicate/inconsistent OCR-quality warning codes | Resolved (by decision) |
-| BL-004 | Change Request | Prompt 03 | Reason-code naming conflict: `IDENTITY_RESOLUTION.md` vs. `AC-ID-001` | Open |
-| BL-005 | Change Request | Prompt 03 | No handling for initials/abbreviated-name variants | Open |
-| BL-006 | Change Request | Prompt 03 | Retain per-field match/mismatch evidence on `IdentityProfile` | Open |
-| BL-007 | Change Request | Prompt 05 | `occupation` is captured but consumed by no rule | Open |
-| BL-008 | Change Request | Prompt 05 | Expected-counterparty-country baseline field | Open |
+| BL-004 | Change Request | Prompt 03 | Reason-code naming conflict: `IDENTITY_RESOLUTION.md` vs. `AC-ID-001` | Resolved |
+| BL-005 | Change Request | Prompt 03 | No handling for initials/abbreviated-name variants | Resolved |
+| BL-006 | Change Request | Prompt 03 | Retain per-field match/mismatch evidence on `IdentityProfile` | Resolved |
+| BL-007 | Change Request | Prompt 05 | `occupation` is captured but consumed by no rule | Resolved (by decision) |
+| BL-008 | Change Request | Prompt 05 | Expected-counterparty-country baseline field | Resolved (by decision) |
 | BL-009 | Change Request | Prompt 07 | No point-in-time KYC-context reconstruction for late events | Open |
 | BL-010 | Change Request | Prompt 11 | No genuine fan-out/dispersal detection for pass-through | Open |
 
@@ -140,7 +140,7 @@ side effect of a later numbered prompt before they need separate work.
 
 - **Type:** Change Request
 - **Source:** Prompt 03 forensics
-- **Status:** Open
+- **Status:** Resolved
 - **Description:** `specs/02_features/IDENTITY_RESOLUTION.md` ("Initial reason codes")
   names `IDENTITY_NAME_MISMATCH`, `IDENTITY_DOB_MISMATCH`, `IDENTITY_MATCH_UNCERTAIN`.
   `specs/07_acceptance/ACCEPTANCE_CRITERIA.md`'s `AC-ID-001` — already approved, already
@@ -153,12 +153,20 @@ side effect of a later numbered prompt before they need separate work.
   mid-prompt.
 - **Suggested next step:** Reconcile the two specs (pick one naming, update the other) as a
   documentation-only change request; no code change implied either way.
+- **Resolution:** User decided the implemented `CROSS_DOCUMENT_*` naming is canonical.
+  Updated `specs/02_features/IDENTITY_RESOLUTION.md`'s "Reason codes" section to match
+  reality (documentation-only; `AC-ID-001` and `src/identity.py` untouched). Also noted
+  that the spec's proposed `IDENTITY_MATCH_UNCERTAIN` third tier was never implemented as
+  a distinct code — the binary similarity threshold already routes anything uncertain to
+  REVIEW, satisfying the underlying requirement without a separate code; recorded as a
+  possible future refinement, not a gap. No code change; full regression (86 tests)
+  confirmed unaffected.
 
 ## BL-005 — No handling for initials/abbreviated-name variants
 
 - **Type:** Change Request
 - **Source:** Prompt 03 forensics
-- **Status:** Open
+- **Status:** Resolved
 - **Description:** `challenges/CH-03.md`'s stated friction explicitly includes "initials"
   (e.g. "J. Smith" vs. "John Smith") as a source of cross-document name variation. The
   current `SequenceMatcher`-based similarity check has no initials-aware logic — an initial
@@ -172,12 +180,26 @@ side effect of a later numbered prompt before they need separate work.
 - **Suggested next step:** Needs an explicit policy decision (recorded via
   `specs/09_change_requests/`) before implementation; likely pairs naturally with any future
   work on `IDENTITY_RESOLUTION.md`'s matching design.
+- **Resolution:** User decided: an initial standing in for a full first name is treated as
+  a match when the surname matches exactly (not merely a softer "uncertain" signal).
+  Implemented as a token-level exception (`_names_match_allowing_initials` in
+  `src/identity.py`), consulted only when the existing whole-name similarity check would
+  already flag a mismatch — requires equal token counts, so a dropped/added name token
+  falls through to the existing behavior rather than being covered by this fix. Recorded
+  as `docs/adr/ADR-002-initials-aware-name-matching.md` per
+  `IDENTITY_RESOLUTION.md`'s "Design freedom" clause, including the accepted residual risk
+  (two people sharing a surname and first-initial could be under-flagged; no current
+  fixture exercises this). Two new tests
+  (`test_initial_vs_full_first_name_is_not_a_mismatch_when_surname_matches`,
+  `test_initial_with_different_surname_is_still_a_mismatch`); CASE-005's real
+  OCR-corruption case (unrelated to initials) verified unaffected. Full regression: 88
+  passed (was 86), preflight/sanity/evals/smoke all green.
 
 ## BL-006 — Retain per-field match/mismatch evidence on `IdentityProfile`
 
 - **Type:** Change Request
 - **Source:** Prompt 03 forensics
-- **Status:** Open
+- **Status:** Resolved
 - **Description:** `prompts/03-cross-document-identity-resolution.md`'s desired outcome
   calls for identity evidence to be "reconciled into a single normalized identity, with the
   match/mismatch evidence for each field retained (not just the final merged value)."
@@ -194,12 +216,20 @@ side effect of a later numbered prompt before they need separate work.
 - **Suggested next step:** If wanted, needs an approved additive schema field (e.g. a small
   `field_conflicts` list) via a change request — happy to draft one if you want to pursue
   this.
+- **Resolution:** User approved the additive schema field. Added `FieldConflict` (`field`,
+  `document_id`, `value`) and `IdentityProfile.field_conflicts: list[FieldConflict] = []`
+  in `src/models_v2.py`. Populated only when the corresponding mismatch flag fires — one
+  entry per document per mismatched field (`full_name` or `date_of_birth`), so an analyst
+  sees the actual conflicting values directly. Documented in
+  `specs/05_data_contracts/DATA_CONTRACTS.md`. Three new tests, including a real-fixture
+  one against CASE-005 asserting the exact conflicting name values per document. Full
+  regression: 91 passed (was 88), preflight/sanity/evals/smoke all green. No `/v1` impact.
 
 ## BL-007 — `occupation` is captured but consumed by no rule
 
 - **Type:** Change Request
 - **Source:** Prompt 05 forensics
-- **Status:** Open
+- **Status:** Resolved (by decision — no code change)
 - **Description:** `IdentityProfile.occupation` is populated verbatim from
   `data/customer_context/*.json` but `grep` across `src/monitoring.py` and
   `src/compliance.py` shows it is never read by any pattern or disposition rule. It exists
@@ -210,12 +240,16 @@ side effect of a later numbered prompt before they need separate work.
 - **Suggested next step:** If there's appetite to make `occupation` load-bearing, needs an
   explicit taxonomy/policy decision recorded via `specs/09_change_requests/` before any
   monitoring logic consumes it.
+- **Resolution:** User decided to leave `occupation` as a captured-but-inert field —
+  any occupation-to-risk taxonomy would be a fabricated business rule with no spec backing
+  and real false-positive/negative risk. No code change. Closed as a deliberate decision,
+  not an open gap.
 
 ## BL-008 — Expected-counterparty-country baseline field
 
 - **Type:** Change Request
 - **Source:** Prompt 05 forensics
-- **Status:** Open
+- **Status:** Resolved (by decision — no code change)
 - **Description:** `prompts/05-expected-activity-profile-normalization.md`'s suggested
   change boundary names "an expected-counterparty-country set" as an example of a
   genuinely new, deterministic normalization (derivable from `residency_country`). It would
@@ -228,6 +262,11 @@ side effect of a later numbered prompt before they need separate work.
 - **Suggested next step:** Revisit when Prompt 09 or 10 is run; decide there whether a new
   `IdentityProfile` field is actually needed or whether `residency_country` (already present)
   is sufficient for the corridor/velocity fusion logic.
+- **Resolution:** Revisited now that Prompts 09/10 have landed. `src/monitoring.py`'s
+  corridor fusion (CH-10) already uses `residency_country` directly to combine geography
+  with identity context — a separate `expected_counterparty_countries` field would
+  duplicate that without adding new detection capability. User confirmed `residency_country`
+  is sufficient. No code change.
 
 ## BL-009 — No point-in-time KYC-context reconstruction for late events
 

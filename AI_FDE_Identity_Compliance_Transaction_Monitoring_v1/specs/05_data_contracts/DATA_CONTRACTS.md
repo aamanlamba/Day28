@@ -15,6 +15,10 @@
 - `confidence`
 - `risk_flags[]`
 - `evidence_refs[]`
+- `field_conflicts[]` (`FieldConflict`: `field`, `document_id`, `value`) — one entry per
+  document per mismatched field, populated only when the corresponding mismatch flag
+  (`CROSS_DOCUMENT_NAME_MISMATCH`/`CROSS_DOCUMENT_DOB_MISMATCH`) is present. Resolves
+  `backlog.md` BL-006.
 
 ## TransactionEvent
 - `transaction_id` — idempotency key

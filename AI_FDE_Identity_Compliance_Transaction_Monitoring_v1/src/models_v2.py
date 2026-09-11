@@ -5,6 +5,13 @@ IdentityStatus = Literal["VERIFIED","REVIEW","REJECTED"]
 RiskLevel = Literal["LOW","MEDIUM","HIGH","CRITICAL"]
 Disposition = Literal["CLEAR","REVIEW","ESCALATE"]
 
+class FieldConflict(BaseModel):
+    """BL-006: one document's contribution to a detected cross-document mismatch, so an
+    analyst can see the actual conflicting values without opening the source documents."""
+    field: str
+    document_id: str
+    value: str | None
+
 class IdentityProfile(BaseModel):
     case_id: str
     canonical_name: str | None = None
@@ -17,6 +24,7 @@ class IdentityProfile(BaseModel):
     confidence: float = Field(ge=0, le=1)
     risk_flags: list[str] = []
     evidence_refs: list[str] = []
+    field_conflicts: list[FieldConflict] = []
 
 class TransactionEvent(BaseModel):
     transaction_id: str

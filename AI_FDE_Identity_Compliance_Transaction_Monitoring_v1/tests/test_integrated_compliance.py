@@ -11,6 +11,68 @@ def test_identity_profile_surfaces_cross_document_name_conflict():
     assert 'CROSS_DOCUMENT_NAME_MISMATCH' in p.risk_flags
 
 
+def test_identity_profile_retains_per_field_name_conflict_evidence():
+    # BL-006: an analyst must be able to see the actual conflicting values, not just a
+    # boolean flag, without opening the source documents.
+    p = build_identity_profile('CASE-005')
+    name_conflicts = [c for c in p.field_conflicts if c.field == 'full_name']
+    by_doc = {c.document_id: c.value for c in name_conflicts}
+    assert by_doc == {
+        'CASE-005-PASSPORT': 'Mohammed Rahman',
+        'CASE-005-NID': 'Moharnmad Rehrnan',
+    }
+
+
+def test_identity_profile_retains_per_field_dob_conflict_evidence(monkeypatch):
+    monkeypatch.setattr('src.identity.verify_case', lambda cid: _case_with_dobs('1992-12-08', '09/12/1992'))
+    p = build_identity_profile('CASE-TEST-DOB')
+    dob_conflicts = [c for c in p.field_conflicts if c.field == 'date_of_birth']
+    by_doc = {c.document_id: c.value for c in dob_conflicts}
+    assert by_doc == {
+        'CASE-TEST-DOB-D1': '1992-12-08',
+        'CASE-TEST-DOB-D2': '09/12/1992',
+    }
+
+
+def test_identity_profile_no_field_conflicts_when_names_and_dobs_agree():
+    p = build_identity_profile('CASE-001')
+    assert p.field_conflicts == []
+
+
+def _case_with_names(name_a: str, name_b: str) -> CaseResult:
+    return CaseResult(
+        case_id='CASE-TEST-INITIALS', decision='APPROVE', reason_codes=['BASELINE_RULES_PASSED'],
+        documents=[
+            DocumentResult(document_id='CASE-TEST-INITIALS-D1', decision='APPROVE',
+                            reason_codes=['BASELINE_RULES_PASSED'],
+                            parsed_fields={'full_name': name_a, 'date_of_birth': '1990-01-01'},
+                            completeness=1.0, warnings=[]),
+            DocumentResult(document_id='CASE-TEST-INITIALS-D2', decision='APPROVE',
+                            reason_codes=['BASELINE_RULES_PASSED'],
+                            parsed_fields={'full_name': name_b, 'date_of_birth': '1990-01-01'},
+                            completeness=1.0, warnings=[]),
+        ],
+        limitation_notice='n/a',
+    )
+
+
+def test_initial_vs_full_first_name_is_not_a_mismatch_when_surname_matches(monkeypatch):
+    # BL-005: "J Smith" vs "John Smith" is plausibly the same person abbreviated -
+    # must not be treated as a cross-document conflict.
+    monkeypatch.setattr('src.identity.verify_case', lambda cid: _case_with_names('John Smith', 'J Smith'))
+    p = build_identity_profile('CASE-TEST-INITIALS')
+    assert p.identity_status == 'VERIFIED'
+    assert 'CROSS_DOCUMENT_NAME_MISMATCH' not in p.risk_flags
+
+
+def test_initial_with_different_surname_is_still_a_mismatch(monkeypatch):
+    # Sharing only an initial must not mask a genuinely different surname.
+    monkeypatch.setattr('src.identity.verify_case', lambda cid: _case_with_names('John Smith', 'J Jones'))
+    p = build_identity_profile('CASE-TEST-INITIALS')
+    assert p.identity_status == 'REVIEW'
+    assert 'CROSS_DOCUMENT_NAME_MISMATCH' in p.risk_flags
+
+
 def test_identity_profile_flags_document_case_linkage_mismatch(monkeypatch):
     # BL-001: a document whose ground-truth case_id disagrees with the case it's
     # referenced under (a misfiled/misconfigured document) must not be silently
