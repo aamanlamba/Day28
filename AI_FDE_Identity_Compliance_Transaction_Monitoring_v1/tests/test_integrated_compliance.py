@@ -367,6 +367,71 @@ def test_pass_through_pattern_detected():
     assert 'TM_PASS_THROUGH' in codes
 
 
+def _pass_through_pairs(pairs):
+    # pairs: list of (credit_amount, debit_amount, delay_hours). Each pair is placed a
+    # full day apart so pairs never cross-match each other within the 6h window.
+    txs = []
+    for i, (credit_amt, debit_amt, delay_hours) in enumerate(pairs):
+        credit_time = datetime(2026, 9, 1 + i, 0, 0, 0, tzinfo=timezone.utc)
+        debit_time = credit_time + timedelta(hours=delay_hours)
+        txs.append({
+            'transaction_id': f'PTC{i}', 'case_id': 'CASE-001',
+            'timestamp': credit_time.isoformat(), 'direction': 'CREDIT',
+            'amount': credit_amt, 'currency': 'USD', 'counterparty_id': f'CP-C{i}',
+            'counterparty_country': 'IN', 'channel': 'TRANSFER', 'device_id': 'DEV-1',
+        })
+        txs.append({
+            'transaction_id': f'PTD{i}', 'case_id': 'CASE-001',
+            'timestamp': debit_time.isoformat(), 'direction': 'DEBIT',
+            'amount': debit_amt, 'currency': 'USD', 'counterparty_id': f'CP-D{i}',
+            'counterparty_country': 'IN', 'channel': 'TRANSFER', 'device_id': 'DEV-1',
+        })
+    return txs
+
+
+def _has_pass_through_alert(monkeypatch, transactions):
+    monkeypatch.setattr('src.monitoring.load_json',
+                         lambda folder, ident: {'case_id': 'CASE-001', 'transactions': transactions})
+    m = evaluate_transactions('CASE-001')
+    return any(a.pattern_code == 'TM_PASS_THROUGH' for a in m.alerts)
+
+
+CONTROL_PAIR = (10000, 9800, 1)  # always safely within tolerance/window/min-amount
+
+
+def test_pass_through_zero_result_no_matching_debit(monkeypatch):
+    no_match = _pass_through_pairs([(10000, 100, 1)])  # debit far outside tolerance
+    assert not _has_pass_through_alert(monkeypatch, no_match)
+
+
+def test_pass_through_count_boundary(monkeypatch):
+    one_pair = _pass_through_pairs([CONTROL_PAIR])
+    assert not _has_pass_through_alert(monkeypatch, one_pair)
+    two_pairs = _pass_through_pairs([CONTROL_PAIR, CONTROL_PAIR])
+    assert _has_pass_through_alert(monkeypatch, two_pairs)
+
+
+def test_pass_through_amount_tolerance_boundary(monkeypatch):
+    at_boundary = _pass_through_pairs([CONTROL_PAIR, (10000, 9200, 1)])  # exactly 8% under
+    assert _has_pass_through_alert(monkeypatch, at_boundary)
+    beyond_boundary = _pass_through_pairs([CONTROL_PAIR, (10000, 9199, 1)])  # 8.01% under
+    assert not _has_pass_through_alert(monkeypatch, beyond_boundary)
+
+
+def test_pass_through_window_boundary(monkeypatch):
+    at_boundary = _pass_through_pairs([CONTROL_PAIR, (10000, 9800, 6)])  # exactly 6h
+    assert _has_pass_through_alert(monkeypatch, at_boundary)
+    beyond_boundary = _pass_through_pairs([CONTROL_PAIR, (10000, 9800, 6.0167)])  # 6h01m
+    assert not _has_pass_through_alert(monkeypatch, beyond_boundary)
+
+
+def test_pass_through_min_credit_amount_boundary(monkeypatch):
+    at_boundary = _pass_through_pairs([CONTROL_PAIR, (5000, 4800, 1)])  # exactly at minimum
+    assert _has_pass_through_alert(monkeypatch, at_boundary)
+    beyond_boundary = _pass_through_pairs([CONTROL_PAIR, (4999, 4800, 1)])  # just under minimum
+    assert not _has_pass_through_alert(monkeypatch, beyond_boundary)
+
+
 def test_explanations_carry_policy_and_evidence_lineage():
     r = evaluate_compliance_case('CASE-007')
     assert r.policy_version

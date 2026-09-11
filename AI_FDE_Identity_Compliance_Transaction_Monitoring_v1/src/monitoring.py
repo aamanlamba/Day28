@@ -17,6 +17,11 @@ STRUCTURING_WINDOW=timedelta(hours=24)
 # CH-09: same rationale as the structuring constants above.
 VELOCITY_MIN_COUNT=5
 VELOCITY_WINDOW=timedelta(minutes=60)
+# CH-11: same rationale as the structuring constants above.
+PASS_THROUGH_WINDOW=timedelta(hours=6)
+PASS_THROUGH_AMOUNT_TOLERANCE=0.08
+PASS_THROUGH_MIN_CREDIT_AMOUNT=5000
+PASS_THROUGH_MIN_MATCHED_COUNT=4
 
 def _dt(s: str) -> datetime:
     return datetime.fromisoformat(s.replace('Z','+00:00'))
@@ -110,10 +115,10 @@ def evaluate_transactions(case_id: str) -> MonitoringResult:
     for c in credits:
         for d in debits:
             delta=_dt(d.timestamp)-_dt(c.timestamp)
-            if timedelta(0) <= delta <= timedelta(hours=6) and abs(d.amount-c.amount)/c.amount <= .08 and c.amount >= 5000:
+            if timedelta(0) <= delta <= PASS_THROUGH_WINDOW and abs(d.amount-c.amount)/c.amount <= PASS_THROUGH_AMOUNT_TOLERANCE and c.amount >= PASS_THROUGH_MIN_CREDIT_AMOUNT:
                 pairs.extend([c,d])
     uniq={t.transaction_id:t for t in pairs}
-    if len(uniq)>=4:
+    if len(uniq)>=PASS_THROUGH_MIN_MATCHED_COUNT:
         p=list(uniq.values())
         alerts.append(_alert(case_id,'TM_PASS_THROUGH','HIGH',0.89,['multiple large credits rapidly followed by near-equal debits','FUNNEL_OR_PASS_THROUGH_BEHAVIOR'],p,evidence_base))
 

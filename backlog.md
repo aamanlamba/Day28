@@ -30,6 +30,7 @@ side effect of a later numbered prompt before they need separate work.
 | BL-007 | Change Request | Prompt 05 | `occupation` is captured but consumed by no rule | Open |
 | BL-008 | Change Request | Prompt 05 | Expected-counterparty-country baseline field | Open |
 | BL-009 | Change Request | Prompt 07 | No point-in-time KYC-context reconstruction for late events | Open |
+| BL-010 | Change Request | Prompt 11 | No genuine fan-out/dispersal detection for pass-through | Open |
 
 ## BL-001 — Document-id-to-case-id linkage is unvalidated
 
@@ -207,3 +208,24 @@ side effect of a later numbered prompt before they need separate work.
 - **Suggested next step:** Would need its own design (likely its own prompt/spec), scoped
   around what "point-in-time identity state" should mean and how it would be persisted —
   well beyond fixing the windowing-order bug this prompt targets.
+
+## BL-010 — No genuine fan-out/dispersal detection for pass-through
+
+- **Type:** Change Request
+- **Source:** Prompt 11 forensics
+- **Status:** Open
+- **Description:** `docs/15_integrated_engineering_challenges.md` row 11 mentions detecting
+  "dispersal to multiple beneficiaries" as part of pass-through/funnel behavior. The
+  implemented pattern (`src/monitoring.py` Pattern 5) matches each debit directly against
+  the *original* credit's full amount within an 8% tolerance — it detects multiple separate
+  1-credit-to-1-debit pairs (which CASE-012's real fixture demonstrates, to two different
+  counterparties), but not a single credit split across several smaller debits to different
+  beneficiaries, since none of those partial debits would individually be within 8% of the
+  full credit amount.
+- **Why deferred:** Genuine fan-out detection needs new policy with no spec backing today:
+  a tolerance for the *sum* of N debits against the credit, and a minimum
+  beneficiary/debit count — both business-rule decisions, not something to invent
+  unilaterally.
+- **Suggested next step:** If wanted, needs an explicit policy decision (recorded via
+  `specs/09_change_requests/`) on the sum-tolerance and minimum dispersal count before
+  implementation.
