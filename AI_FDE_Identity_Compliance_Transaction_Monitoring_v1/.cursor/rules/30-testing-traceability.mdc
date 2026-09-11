@@ -1,0 +1,15 @@
+---
+description: Acceptance-test and traceability requirements
+globs: "tests/**/*.py,specs/07_acceptance/**/*.md,specs/08_traceability/**/*.md,evidence/**/*.md"
+alwaysApply: false
+---
+# Testing and Traceability Rules
+
+Every target-behavior test should reference at least one requirement or acceptance criterion in its test name, docstring, comment, or adjacent evidence record.
+
+Verification order:
+1. acceptance/targeted tests,
+2. existing regression suite,
+3. sanity/preflight checks when relevant.
+
+If a legacy regression conflicts with an approved target spec, flag the conflict explicitly and update the regression only with documented rationale and traceability.

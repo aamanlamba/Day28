@@ -1,0 +1,13 @@
+---
+description: Security and privacy guardrails for identity/KYC changes
+globs: "src/**/*.py,tests/**/*.py,specs/04_security_privacy/**/*.md"
+alwaysApply: false
+---
+# Security and Privacy Rules
+
+- Treat all identity fields as sensitive even though repository data is synthetic.
+- Minimize sensitive data in logs, exceptions, fixtures, and generated evidence.
+- Reject unsafe path traversal and malformed identifiers.
+- Preserve correlation IDs without exposing raw identity content.
+- Any new persistence, telemetry, provider integration, or reviewer flow requires an explicit security/privacy spec update.
+- Security controls require executable tests or review evidence; prose-only claims are insufficient.

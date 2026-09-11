@@ -1,0 +1,17 @@
+{
+  "case_id": "CASE-004",
+  "transactions": [
+    {
+      "transaction_id": "T401",
+      "case_id": "CASE-004",
+      "timestamp": "2026-09-01T09:00:00+00:00",
+      "direction": "CREDIT",
+      "amount": 1500,
+      "currency": "USD",
+      "counterparty_id": "CP-001",
+      "counterparty_country": "IN",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    }
+  ]
+}

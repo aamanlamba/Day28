@@ -1,0 +1,29 @@
+{
+  "case_id": "CASE-008",
+  "transactions": [
+    {
+      "transaction_id": "T801",
+      "case_id": "CASE-008",
+      "timestamp": "2026-09-01T09:00:00+00:00",
+      "direction": "DEBIT",
+      "amount": 12000,
+      "currency": "USD",
+      "counterparty_id": "CP-XQ",
+      "counterparty_country": "XQ",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    },
+    {
+      "transaction_id": "T802",
+      "case_id": "CASE-008",
+      "timestamp": "2026-09-04T11:00:00+00:00",
+      "direction": "CREDIT",
+      "amount": 7000,
+      "currency": "USD",
+      "counterparty_id": "CP-ZR",
+      "counterparty_country": "ZR",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    }
+  ]
+}

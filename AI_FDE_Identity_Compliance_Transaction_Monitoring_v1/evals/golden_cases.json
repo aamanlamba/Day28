@@ -1,0 +1,38 @@
+{
+  "CASE-001": {
+    "expected_disposition": "CLEAR"
+  },
+  "CASE-004": {
+    "expected_disposition": "ESCALATE"
+  },
+  "CASE-007": {
+    "must_alert": [
+      "TM_STRUCTURING"
+    ]
+  },
+  "CASE-008": {
+    "must_alert": [
+      "TM_HIGH_RISK_CORRIDOR"
+    ]
+  },
+  "CASE-009": {
+    "must_warn": [
+      "DUPLICATE_EVENT_SUPPRESSED"
+    ]
+  },
+  "CASE-010": {
+    "must_alert": [
+      "TM_RAPID_VELOCITY"
+    ]
+  },
+  "CASE-011": {
+    "must_alert": [
+      "TM_EXPECTED_ACTIVITY_DEVIATION"
+    ]
+  },
+  "CASE-012": {
+    "must_alert": [
+      "TM_PASS_THROUGH"
+    ]
+  }
+}

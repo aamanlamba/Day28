@@ -1,0 +1,19 @@
+---
+description: Enforce Specs-Driven Development workflow across the repository
+globs: "**/*"
+alwaysApply: true
+---
+# Specs-Driven Development Core Rule
+
+Before implementation, locate the governing requirement IDs in `specs/`. Treat specs as target intent and existing tests as evidence of legacy behavior.
+
+For every requested change:
+1. State the requirement IDs and acceptance criteria.
+2. Identify ambiguities, conflicts, missing decisions, and affected files.
+3. Create a concise plan before edits.
+4. Prefer tests derived from acceptance criteria before implementation changes.
+5. Make minimal, reviewable diffs.
+6. Run targeted tests and full regression tests.
+7. Update traceability/evidence when behavior changes.
+
+Never invent business policy. If the spec is insufficient, create a change request instead of guessing.

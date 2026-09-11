@@ -1,0 +1,53 @@
+{
+  "case_id": "CASE-012",
+  "transactions": [
+    {
+      "transaction_id": "T1201",
+      "case_id": "CASE-012",
+      "timestamp": "2026-09-01T08:00:00+00:00",
+      "direction": "CREDIT",
+      "amount": 15000,
+      "currency": "USD",
+      "counterparty_id": "CP-A",
+      "counterparty_country": "IN",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    },
+    {
+      "transaction_id": "T1202",
+      "case_id": "CASE-012",
+      "timestamp": "2026-09-01T11:00:00+00:00",
+      "direction": "DEBIT",
+      "amount": 14500,
+      "currency": "USD",
+      "counterparty_id": "CP-X",
+      "counterparty_country": "IN",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    },
+    {
+      "transaction_id": "T1203",
+      "case_id": "CASE-012",
+      "timestamp": "2026-09-02T08:00:00+00:00",
+      "direction": "CREDIT",
+      "amount": 18000,
+      "currency": "USD",
+      "counterparty_id": "CP-B",
+      "counterparty_country": "IN",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    },
+    {
+      "transaction_id": "T1204",
+      "case_id": "CASE-012",
+      "timestamp": "2026-09-02T10:30:00+00:00",
+      "direction": "DEBIT",
+      "amount": 17200,
+      "currency": "USD",
+      "counterparty_id": "CP-Y",
+      "counterparty_country": "IN",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    }
+  ]
+}

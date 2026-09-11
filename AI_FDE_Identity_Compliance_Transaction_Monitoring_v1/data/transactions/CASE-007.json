@@ -1,0 +1,41 @@
+{
+  "case_id": "CASE-007",
+  "transactions": [
+    {
+      "transaction_id": "T701",
+      "case_id": "CASE-007",
+      "timestamp": "2026-09-01T09:00:00+00:00",
+      "direction": "CREDIT",
+      "amount": 9200,
+      "currency": "USD",
+      "counterparty_id": "CP-A",
+      "counterparty_country": "IN",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    },
+    {
+      "transaction_id": "T702",
+      "case_id": "CASE-007",
+      "timestamp": "2026-09-01T14:00:00+00:00",
+      "direction": "CREDIT",
+      "amount": 9400,
+      "currency": "USD",
+      "counterparty_id": "CP-B",
+      "counterparty_country": "IN",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    },
+    {
+      "transaction_id": "T703",
+      "case_id": "CASE-007",
+      "timestamp": "2026-09-02T07:30:00+00:00",
+      "direction": "CREDIT",
+      "amount": 9600,
+      "currency": "USD",
+      "counterparty_id": "CP-C",
+      "counterparty_country": "IN",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "case_id": "CASE-001",
+  "transactions": [
+    {
+      "transaction_id": "T001",
+      "case_id": "CASE-001",
+      "timestamp": "2026-09-01T09:00:00+00:00",
+      "direction": "CREDIT",
+      "amount": 2200,
+      "currency": "USD",
+      "counterparty_id": "CP-001",
+      "counterparty_country": "IN",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    },
+    {
+      "transaction_id": "T002",
+      "case_id": "CASE-001",
+      "timestamp": "2026-09-03T10:00:00+00:00",
+      "direction": "DEBIT",
+      "amount": 900,
+      "currency": "USD",
+      "counterparty_id": "CP-001",
+      "counterparty_country": "IN",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    }
+  ]
+}

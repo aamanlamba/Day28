@@ -1,0 +1,14 @@
+---
+description: Python and FastAPI engineering constraints for the KYC service
+globs: "src/**/*.py,tests/**/*.py,scripts/**/*.py"
+alwaysApply: false
+---
+# Python / FastAPI Rules
+
+- Preserve FastAPI `/v1` endpoint contracts unless an approved API spec says otherwise.
+- Keep functions focused and deterministic where possible.
+- Use explicit types for public functions and Pydantic models for API contracts.
+- Validate untrusted identifiers before file-system access.
+- Do not add network calls or cloud dependencies; this training repo must remain offline-friendly.
+- Add tests for success, boundary, malformed-input, and regression cases relevant to the requirement.
+- Existing brownfield tests may document defects; do not blindly encode them as desired behavior.

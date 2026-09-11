@@ -1,0 +1,20 @@
+from .identity import build_identity_profile
+from .monitoring import evaluate_transactions, POLICY_VERSION
+from .models_v2 import ComplianceCaseResult
+
+def evaluate_compliance_case(case_id: str) -> ComplianceCaseResult:
+    identity=build_identity_profile(case_id)
+    monitoring=evaluate_transactions(case_id)
+    reasons=[]
+    disposition='CLEAR'
+    if identity.identity_status == 'REJECTED':
+        disposition='ESCALATE'; reasons.append('IDENTITY_NOT_VERIFIED')
+    elif identity.identity_status == 'REVIEW':
+        disposition='REVIEW'; reasons.append('IDENTITY_REQUIRES_REVIEW')
+    if monitoring.overall_risk in ('HIGH','CRITICAL'):
+        disposition='ESCALATE'; reasons.append('TRANSACTION_MONITORING_HIGH_RISK')
+    elif monitoring.overall_risk == 'MEDIUM' and disposition=='CLEAR':
+        disposition='REVIEW'; reasons.append('TRANSACTION_MONITORING_MEDIUM_RISK')
+    if not reasons: reasons=['NO_ESCALATION_TRIGGERED']
+    lineage=identity.evidence_refs + [f'transactions:{case_id}'] + [f'alert:{a.alert_id}' for a in monitoring.alerts]
+    return ComplianceCaseResult(case_id=case_id, disposition=disposition, reason_codes=reasons, identity=identity, monitoring=monitoring, policy_version=POLICY_VERSION, evidence_lineage=lineage)

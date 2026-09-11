@@ -1,0 +1,77 @@
+{
+  "case_id": "CASE-010",
+  "transactions": [
+    {
+      "transaction_id": "T100",
+      "case_id": "CASE-010",
+      "timestamp": "2026-09-01T10:00:00+00:00",
+      "direction": "DEBIT",
+      "amount": 500,
+      "currency": "USD",
+      "counterparty_id": "CP-0",
+      "counterparty_country": "IN",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    },
+    {
+      "transaction_id": "T101",
+      "case_id": "CASE-010",
+      "timestamp": "2026-09-01T10:08:00+00:00",
+      "direction": "DEBIT",
+      "amount": 525,
+      "currency": "USD",
+      "counterparty_id": "CP-1",
+      "counterparty_country": "IN",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    },
+    {
+      "transaction_id": "T102",
+      "case_id": "CASE-010",
+      "timestamp": "2026-09-01T10:16:00+00:00",
+      "direction": "DEBIT",
+      "amount": 550,
+      "currency": "USD",
+      "counterparty_id": "CP-2",
+      "counterparty_country": "IN",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    },
+    {
+      "transaction_id": "T103",
+      "case_id": "CASE-010",
+      "timestamp": "2026-09-01T10:24:00+00:00",
+      "direction": "DEBIT",
+      "amount": 575,
+      "currency": "USD",
+      "counterparty_id": "CP-3",
+      "counterparty_country": "IN",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    },
+    {
+      "transaction_id": "T104",
+      "case_id": "CASE-010",
+      "timestamp": "2026-09-01T10:32:00+00:00",
+      "direction": "DEBIT",
+      "amount": 600,
+      "currency": "USD",
+      "counterparty_id": "CP-4",
+      "counterparty_country": "IN",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    },
+    {
+      "transaction_id": "T105",
+      "case_id": "CASE-010",
+      "timestamp": "2026-09-01T10:40:00+00:00",
+      "direction": "DEBIT",
+      "amount": 625,
+      "currency": "USD",
+      "counterparty_id": "CP-5",
+      "counterparty_country": "IN",
+      "channel": "TRANSFER",
+      "device_id": "DEV-1"
+    }
+  ]
+}

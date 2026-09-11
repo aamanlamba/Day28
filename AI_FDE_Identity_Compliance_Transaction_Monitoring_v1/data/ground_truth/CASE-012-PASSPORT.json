@@ -1,0 +1,15 @@
+{
+  "document_id": "CASE-012-PASSPORT",
+  "document_type": "passport",
+  "full_name": "Vikram Shah",
+  "date_of_birth": "1984-12-14",
+  "document_number": "PXT121201",
+  "issue_date": "2024-01-01",
+  "expiry_date": "2034-01-01",
+  "nationality": "Republic of Meridian",
+  "case_id": "CASE-012",
+  "address": "012 Synthetic Avenue, Meridian City",
+  "scenario_flags": [
+    "integrated_monitoring_training"
+  ]
+}
